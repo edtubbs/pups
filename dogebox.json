@@ -1,22 +1,10 @@
 {
-  "id": "dogeorg.pups",
+  "id": "edtubbs.pups",
   "name": "Dogecoin Foundation",
   "description": "DogeOrg maintained pups for Dogebox",
   "pups": [
     {
-      "location": "core"
-    },
-    {
-      "location": "gigawallet"
-    },
-    {
-      "location": "dogenet"
-    },
-    {
-      "location": "dogemap"
-    },
-    {
-      "location": "identity"
+      "location": "spv"
     }
   ]
 }
