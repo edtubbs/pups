@@ -1,11 +1,11 @@
 {
   "manifestVersion": 1,
   "meta": {
-    "name": "Libdogecoin SPV",
-    "version": "0.0.6",
+    "name": "Libdogecoin SPV Enclave",
+    "version": "0.0.1",
     "logoPath": "logo.png",
     "shortDescription": "Run a libdogecoin SPV node on your dogebox",
-    "longDescription": "Libdogecoin SPV runs a minimal node on your dogebox",
+    "longDescription": "Libdogecoin SPV Enclave runs a minimal node on your dogebox with the key management enclave. Insert a Yubikey during install, or don't for test mode.",
     "upstreamVersions": {
       "Libdogecoin": "v0.1.5-pre"
     }
@@ -16,7 +16,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "7fbf8746bd81562def7c582694fd57d85ecefdd478bfc13ae9ed6a6133c68d53"
+      "nixFileSha256": "60f6db93fb54a1f69528a7f226ef926ee6bd578303675a457c77f33ccb4bda76"
     },
     "services": [
       {
