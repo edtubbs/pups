@@ -1,0 +1,121 @@
+{
+  "manifestVersion": 1,
+  "meta": {
+    "name": "Libdogecoin SPV Enclave Gateway",
+    "version": "0.0.1",
+    "logoPath": "logo.png",
+    "shortDescription": "Run a libdogecoin SPV node on your dogebox with a merchant gateway",
+    "longDescription": "Libdogecoin SPV Enclave Gateway runs a minimal node on your dogebox with the key management enclave. Insert a Yubikey before operation.",
+    "upstreamVersions": {
+      "Libdogecoin": "v0.1.5-pre"
+    }
+  },
+  "config": {
+    "sections": null
+  },
+  "container": {
+    "build": {
+      "nixFile": "pup.nix",
+      "nixFileSha256": "dd7c8476bbf6982edce66be8965a413c2b9f892388d64eb37bb301e999270b78"
+    },
+    "services": [
+      {
+        "name": "spvnode",
+        "command": {
+          "exec": "/bin/run.sh",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "gateway",
+        "command": {
+          "exec": "/bin/gateway.sh",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "monitor",
+        "command": {
+          "exec": "/bin/monitor",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "logger",
+        "command": {
+          "exec": "/bin/logger",
+          "cwd": "",
+          "env": null
+        }
+      }
+    ],
+    "exposes": [
+      {
+        "name": "p2p-port",
+        "type": "tcp",
+        "port": 22556,
+        "interfaces": null,
+        "listenOnHost": true
+      },
+      {
+        "name": "rest-port",
+        "type": "http",
+        "port": 8888,
+        "interfaces": ["lib-rest"],
+        "listenOnHost": false
+      }
+    ],
+    "requiresInternet": true
+  },
+  "interfaces": [
+    {
+      "name": "lib-rest",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "REST",
+          "description": "Allows RESTful access to the Libdogecoin SPV node",
+          "severity": 2,
+          "routes": ["/*"],
+          "port": 0
+        }
+      ]
+    }
+  ],
+  "dependencies": null,
+  "metrics": [
+    {
+      "name": "chaintip",
+      "label": "Chain Tip",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "addresses",
+      "label": "Addresses",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "balance",
+      "label": "Wallet Balance",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "utxos",
+      "label": "UTXOs",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "transactions",
+      "label": "Transactions",
+      "type": "string",
+      "history": 1
+    }
+  ]
+}
