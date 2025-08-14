@@ -93,8 +93,6 @@ in
 {
   pupEnclave = true;
 
-  imports = [ (pkgs.nixosModules.tee-supplicant) ];
-
   inherit spvnode monitor logger awk host util-linux;
 
   services.tee-supplicant = {
