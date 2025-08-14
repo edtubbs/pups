@@ -3,8 +3,8 @@
 let
   storageDirectory = "/storage";
   spvnode_bin = pkgs.callPackage (pkgs.fetchurl {
-    url = "https://raw.githubusercontent.com/Dogebox-WG/dogebox-nur-packages/77dc446e14e1fb691e67b186da013ebef92c7ca7/pkgs/libdogecoin/default.nix";
-    sha256 = "sha256-9RNu1IA703gNqnpDdZ6feEI5WOBDjsOvdRaWeJBNxJg=";
+    url = "https://raw.githubusercontent.com/edtubbs/dogebox-nur-packages/8e69f6a2354040799bc7598b30481e5a02a5274d/pkgs/libdogecoin/default.nix";
+    sha256 = "sha256-J9GW9/axY/8M0UGVzwlBdl2RTFBDb8jVzvYOsMZVG9w=";
   }) {
   };
 
@@ -92,8 +92,6 @@ let
 in
 {
   pupEnclave = true;
-
-  imports = [ (pkgs.nixosModules.tee-supplicant) ];
 
   inherit spvnode monitor logger awk host util-linux;
 
