@@ -23,6 +23,9 @@
     },
     {
       "location": "spv_enclave"
+    },
+    {
+      "location": "dashboard"
     }
   ]
 }
