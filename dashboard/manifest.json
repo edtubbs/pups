@@ -1,0 +1,67 @@
+{
+  "manifestVersion": 1,
+  "meta": {
+    "name": "Libdogecoin dashb0rd",
+    "version": "0.0.1",
+    "logoPath": "logo.png",
+    "shortDescription": "Run a libdogecoin SPV node on your dogebox",
+    "longDescription": "Libdogecoin SPV runs a minimal node on your dogebox",
+    "upstreamVersions": { "Libdogecoin": "v0.1.5-pre-dashb0rd" }
+  },
+  "config": { "sections": null },
+  "container": {
+    "build": {
+      "nixFile": "pup.nix",
+      "nixFileSha256": "6379afd505e0f849c683e3337a93ca4b45672f34400c96670055f637a1b1e304"
+    },
+    "services": [
+      { "name": "spvnode", "command": { "exec": "/bin/run.sh", "cwd": "", "env": null } },
+      { "name": "monitor", "command": { "exec": "/bin/monitor", "cwd": "", "env": null } },
+      { "name": "logger", "command": { "exec": "/bin/logger", "cwd": "", "env": null } }
+    ],
+    "exposes": [
+      { "name": "p2p-port", "type": "tcp", "port": 22556, "interfaces": null, "listenOnHost": true },
+      { "name": "rest-port", "type": "http", "port": 8888, "interfaces": ["lib-rest"], "listenOnHost": false }
+    ],
+    "requiresInternet": true
+  },
+  "interfaces": [
+    {
+      "name": "lib-rest",
+      "version": "0.0.1",
+      "permissionGroups": [
+        { "name": "REST", "description": "Allows RESTful access to the Libdogecoin SPV node", "severity": 2, "routes": ["/*"], "port": 0 }
+      ]
+    }
+  ],
+  "dependencies": null,
+  "metrics": [
+    { "name": "chaintip", "label": "Chain Tip", "type": "string", "history": 1 },
+    { "name": "addresses", "label": "Addresses", "type": "string", "history": 1 },
+    { "name": "balance", "label": "Wallet Balance", "type": "string", "history": 1 },
+    { "name": "utxos", "label": "UTXOs", "type": "string", "history": 1 },
+    { "name": "transactions", "label": "Transactions", "type": "string", "history": 1 },
+    { "name": "stats_blocks", "label": "Stats Blocks", "type": "float", "history": 100 },
+    { "name": "stats_transactions", "label": "Stats Tx", "type": "float", "history": 100 },
+    { "name": "stats_tps", "label": "Stats TPS", "type": "float", "history": 100 },
+    { "name": "stats_volume", "label": "Stats Volume (DOGE)", "type": "float", "history": 100 },
+    { "name": "stats_volume_koinu", "label": "Stats Volume (koinu)", "type": "float", "history": 100 },
+    { "name": "stats_median_fee_per_block", "label": "Median Fee/Block (DOGE)", "type": "float", "history": 100 },
+    { "name": "stats_avg_fee_per_block", "label": "Avg Fee/Block (DOGE)", "type": "float", "history": 100 },
+    { "name": "stats_outputs", "label": "Stats Outputs", "type": "float", "history": 100 },
+    { "name": "stats_bytes", "label": "Stats Bytes", "type": "float", "history": 100 },
+    { "name": "stats_tip_height", "label": "Stats Tip Height", "type": "float", "history": 100 },
+    { "name": "stats_tip_bits", "label": "Stats Tip Bits", "type": "float", "history": 100 },
+    { "name": "headers_bytes", "label": "Headers Bytes", "type": "string", "history": 1 },
+    { "name": "blocks_total", "label": "Blocks Total", "type": "string", "history": 1 },
+    { "name": "transactions_total", "label": "Transactions Total", "type": "string", "history": 1 },
+    { "name": "outputs_total", "label": "Outputs Total", "type": "string", "history": 1 },
+    { "name": "output_value_total", "label": "Output Value Total (DOGE)", "type": "string", "history": 1 },
+    { "name": "fees_total", "label": "Fees Total (DOGE)", "type": "string", "history": 1 },
+    { "name": "block_bytes_total", "label": "Block Bytes Total", "type": "string", "history": 1 },
+    { "name": "approx_chain_bytes", "label": "Approx Chain Bytes", "type": "string", "history": 1 },
+    { "name": "chain_tip_height", "label": "Chain Tip Height (chainStats)", "type": "string", "history": 1 },
+    { "name": "chain_tip_bits", "label": "Chain Tip Bits (chainStats)", "type": "string", "history": 1 },
+    { "name": "chain_tip_time", "label": "Chain Tip Time", "type": "string", "history": 1 }
+  ]
+}
