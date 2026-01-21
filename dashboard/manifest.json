@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "Libdogecoin dashb0rd",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "logoPath": "logo.png",
     "shortDescription": "Run a libdogecoin SPV node on your dogebox",
     "longDescription": "Libdogecoin SPV runs a minimal node on your dogebox",
@@ -12,7 +12,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "782a312124001ebece1a170d941e7f873dcb227d7d574611ecbf32399ca7ba81"
+      "nixFileSha256": "e934f3f4180cf1699cde98f96398673ada183abb20d0207e88a76331bf947720"
     },
     "services": [
       { "name": "spvnode", "command": { "exec": "/bin/run.sh", "cwd": "", "env": null } },
