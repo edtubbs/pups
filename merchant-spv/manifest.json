@@ -1,0 +1,166 @@
+{
+  "manifestVersion": 1,
+  "meta": {
+    "name": "Merchant SPV Gateway",
+    "version": "0.0.1",
+    "logoPath": "",
+    "shortDescription": "Lightweight payment processor for Dogecoin merchants",
+    "longDescription": "A pruned node implementation optimized for merchant payment acceptance with minimal disk footprint"
+  },
+  "config": {
+    "sections": [
+      {
+        "name": "Gateway Configuration",
+        "fields": [
+          {
+            "name": "min_confirmations",
+            "label": "Minimum Confirmations",
+            "type": "number",
+            "default": "6",
+            "description": "Confirmations needed to finalize transactions"
+          },
+          {
+            "name": "notification_endpoint",
+            "label": "Notification URL",
+            "type": "string",
+            "default": "",
+            "description": "HTTP endpoint for payment alerts"
+          }
+        ]
+      }
+    ]
+  },
+  "container": {
+    "build": {
+      "nixFile": "pup.nix",
+      "nixFileSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "services": [
+      {
+        "name": "node-daemon",
+        "command": {
+          "exec": "/bin/start-node.sh",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "payment-gateway",
+        "command": {
+          "exec": "/bin/gateway-service",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "health-checker",
+        "command": {
+          "exec": "/bin/health-service",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "log-stream",
+        "command": {
+          "exec": "/bin/logstream-service",
+          "cwd": "",
+          "env": null
+        }
+      }
+    ],
+    "exposes": [
+      {
+        "name": "p2p-network",
+        "type": "tcp",
+        "port": 22556,
+        "interfaces": null,
+        "listenOnHost": true
+      },
+      {
+        "name": "json-rpc",
+        "type": "http",
+        "port": 22555,
+        "interfaces": [
+          "node-rpc"
+        ],
+        "listenOnHost": false
+      },
+      {
+        "name": "gateway-http",
+        "type": "http",
+        "port": 8080,
+        "interfaces": [
+          "gateway-api"
+        ],
+        "listenOnHost": false
+      }
+    ],
+    "requiresInternet": true
+  },
+  "interfaces": [
+    {
+      "name": "node-rpc",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "NodeRPC",
+          "description": "JSON-RPC interface for node queries",
+          "severity": 2,
+          "routes": [
+            "/*"
+          ],
+          "port": 0
+        }
+      ]
+    },
+    {
+      "name": "gateway-api",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "GatewayAPI",
+          "description": "Payment gateway REST interface",
+          "severity": 2,
+          "routes": [
+            "/*"
+          ],
+          "port": 0
+        }
+      ]
+    }
+  ],
+  "dependencies": null,
+  "metrics": [
+    {
+      "name": "network",
+      "label": "Network identifier",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "current_height",
+      "label": "Current block height",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "header_count",
+      "label": "Header count",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "awaiting_confirm",
+      "label": "Payments awaiting confirmation",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "daily_confirmed",
+      "label": "Daily confirmed transactions",
+      "type": "int",
+      "history": 30
+    }
+  ]
+}
