@@ -24,10 +24,25 @@ let
 
     # Generate a mnemonic with the libdogecoin key management enclave
     if [ ! -f "${storageDirectory}/wallet.db" ]; then
-        # YubiKey (TOTP) path
+        # Create output.log and display one-time mnemonic warning
+        echo "============================================" > "${storageDirectory}/output.log"
+        echo "⚠️  ONE-TIME MNEMONIC DISPLAY ⚠️" >> "${storageDirectory}/output.log"
+        echo "============================================" >> "${storageDirectory}/output.log"
+        echo "IMPORTANT: Save this mnemonic phrase now!" >> "${storageDirectory}/output.log"
+        echo "This is your ONLY opportunity to see it." >> "${storageDirectory}/output.log"
+        echo "It will NOT be saved or shown again." >> "${storageDirectory}/output.log"
+        echo "============================================" >> "${storageDirectory}/output.log"
+        echo "" >> "${storageDirectory}/output.log"
+        
+        # YubiKey (TOTP) path - capture mnemonic to output.log for one-time display
         { sleep 1; printf '\n'; sleep 1; printf 'y\n'; } | \
           SHELL=/run/current-system/sw/bin/bash \
-          ${util-linux}/bin/script -q -e -c "${optee_libdogecoin}/bin/optee_libdogecoin -c generate_mnemonic -z" /dev/null 2>&1
+          ${util-linux}/bin/script -q -e -c "${optee_libdogecoin}/bin/optee_libdogecoin -c generate_mnemonic -z" /dev/null 2>&1 | tee -a "${storageDirectory}/output.log"
+        
+        echo "" >> "${storageDirectory}/output.log"
+        echo "============================================" >> "${storageDirectory}/output.log"
+        echo "Mnemonic displayed above. Starting wallet initialization..." >> "${storageDirectory}/output.log"
+        echo "============================================" >> "${storageDirectory}/output.log"
 
         # Give the TEE a moment
         sleep 1
