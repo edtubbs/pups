@@ -42,7 +42,7 @@ var state = &GatewayState{
 
 func generateAddress(label string) (string, error) {
 	suchBin := fmt.Sprintf("%s/bin/such", libdogecoinPath)
-	
+
 	// Generate new private key
 	privKeyCmd := exec.Command(suchBin, "-c", "generate_private_key")
 	privOutput, err := privKeyCmd.CombinedOutput()
@@ -103,7 +103,7 @@ func generateNewAddress(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Label string `json:"label"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
