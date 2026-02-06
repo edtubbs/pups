@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-var libdogecoinPath string
+var gatewayScript string
 var storagePath string
 
 type PaymentAddress struct {
@@ -40,58 +40,13 @@ var state = &GatewayState{
 	pending:   []PaymentStatus{},
 }
 
-func generateAddress(label string) (string, error) {
-	suchBin := fmt.Sprintf("%s/bin/such", libdogecoinPath)
-
-	// Generate new private key
-	privKeyCmd := exec.Command(suchBin, "-c", "generate_private_key")
-	privOutput, err := privKeyCmd.CombinedOutput()
+func executeGatewayCommand(args ...string) (string, error) {
+	cmd := exec.Command(gatewayScript, args...)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("failed to generate key: %w, output: %s", err, privOutput)
+		return "", fmt.Errorf("gateway command failed: %w, output: %s", err, output)
 	}
-
-	// Parse private key WIF
-	lines := strings.Split(string(privOutput), "\n")
-	var privKey string
-	for _, line := range lines {
-		if strings.Contains(line, "privatekey WIF:") {
-			parts := strings.Split(line, ":")
-			if len(parts) >= 2 {
-				privKey = strings.TrimSpace(parts[1])
-				break
-			}
-		}
-	}
-
-	if privKey == "" {
-		return "", fmt.Errorf("could not parse private key from output")
-	}
-
-	// Generate public key and address
-	pubKeyCmd := exec.Command(suchBin, "-c", "generate_public_key", "-p", privKey)
-	pubOutput, err := pubKeyCmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("failed to generate address: %w", err)
-	}
-
-	// Parse address
-	lines = strings.Split(string(pubOutput), "\n")
-	var address string
-	for _, line := range lines {
-		if strings.Contains(line, "p2pkh address:") {
-			parts := strings.Split(line, ":")
-			if len(parts) >= 2 {
-				address = strings.TrimSpace(parts[1])
-				break
-			}
-		}
-	}
-
-	if address == "" {
-		return "", fmt.Errorf("could not parse address from output")
-	}
-
-	return address, nil
+	return string(output), nil
 }
 
 func generateNewAddress(w http.ResponseWriter, r *http.Request) {
@@ -109,21 +64,26 @@ func generateNewAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	address, err := generateAddress(req.Label)
+	if req.Label == "" {
+		req.Label = "payment"
+	}
+
+	output, err := executeGatewayCommand("generateAddress", req.Label)
 	if err != nil {
 		log.Printf("Address generation failed: %v", err)
 		http.Error(w, "Failed to generate address", http.StatusInternalServerError)
 		return
 	}
 
-	payAddr := PaymentAddress{
-		Address:   address,
-		Label:     req.Label,
-		CreatedAt: time.Now(),
+	var payAddr PaymentAddress
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &payAddr); err != nil {
+		log.Printf("Failed to parse address response: %v", err)
+		http.Error(w, "Failed to parse address", http.StatusInternalServerError)
+		return
 	}
 
 	state.mu.Lock()
-	state.addresses[address] = payAddr
+	state.addresses[payAddr.Address] = payAddr
 	state.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -131,13 +91,26 @@ func generateNewAddress(w http.ResponseWriter, r *http.Request) {
 }
 
 func listAddresses(w http.ResponseWriter, r *http.Request) {
-	state.mu.RLock()
-	defer state.mu.RUnlock()
-
-	addrs := make([]PaymentAddress, 0, len(state.addresses))
-	for _, addr := range state.addresses {
-		addrs = append(addrs, addr)
+	output, err := executeGatewayCommand("listAddresses")
+	if err != nil {
+		log.Printf("List addresses failed: %v", err)
+		http.Error(w, "Failed to list addresses", http.StatusInternalServerError)
+		return
 	}
+
+	var addrs []PaymentAddress
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &addrs); err != nil {
+		log.Printf("Failed to parse addresses: %v", err)
+		http.Error(w, "Failed to parse addresses", http.StatusInternalServerError)
+		return
+	}
+
+	// Update internal state
+	state.mu.Lock()
+	for _, addr := range addrs {
+		state.addresses[addr.Address] = addr
+	}
+	state.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(addrs)
@@ -149,6 +122,35 @@ func checkPayments(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(state.pending)
+}
+
+func broadcastTransaction(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Hex string `json:"hex"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	output, err := executeGatewayCommand("broadcastTransaction", req.Hex)
+	if err != nil {
+		log.Printf("Broadcast failed: %v", err)
+		http.Error(w, "Failed to broadcast transaction", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "broadcasted",
+		"output": strings.TrimSpace(output),
+	})
 }
 
 func healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -172,13 +174,16 @@ func monitorWalletDatabase() {
 		}
 
 		log.Printf("Wallet database found and monitoring...")
-		// In a full implementation, we would query the libdogecoin wallet database
-		// for transactions related to our monitored addresses
+		// In a full implementation, we would query the wallet database
+		// or use spvnode's wallet features to track transactions
 	}
 }
 
 func main() {
-	log.Println("Starting merchant payment gateway for libdogecoin spvnode...")
+	log.Println("Starting merchant payment gateway with libdogecoin spvnode...")
+	log.Printf("Gateway script: %s", gatewayScript)
+	log.Printf("Storage path: %s", storagePath)
+
 	time.Sleep(10 * time.Second)
 
 	go monitorWalletDatabase()
@@ -186,6 +191,7 @@ func main() {
 	http.HandleFunc("/api/address/new", generateNewAddress)
 	http.HandleFunc("/api/address/list", listAddresses)
 	http.HandleFunc("/api/payments", checkPayments)
+	http.HandleFunc("/api/transaction/broadcast", broadcastTransaction)
 	http.HandleFunc("/health", healthCheck)
 
 	log.Println("Gateway API listening on :8080")

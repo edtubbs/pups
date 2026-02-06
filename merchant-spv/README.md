@@ -10,6 +10,8 @@
 
 This pup provides a lightweight Dogecoin payment gateway using **libdogecoin's spvnode** for merchant use cases. Unlike full node implementations, this uses Simple Payment Verification (SPV) to verify transactions with only block headers, minimizing disk space and sync time.
 
+The gateway uses a **script wrapper approach** to expose libdogecoin tools (`spvnode`, `such`, `sendtx`) through a unified `gateway.sh` script, providing a clean interface for payment operations.
+
 ## What is libdogecoin?
 
 [Libdogecoin](https://github.com/dogecoinfoundation/libdogecoin) is a clean C library implementation of Dogecoin building blocks. It provides lightweight tools including:
@@ -62,6 +64,13 @@ GET /api/payments
 Response: [{"txid": "...", "address": "...", "amount": 100.0, "confirmations": 3}]
 ```
 
+### Broadcast Transaction
+```
+POST /api/transaction/broadcast
+Body: {"hex": "01000000..."}
+Response: {"status": "broadcasted", "output": "..."}
+```
+
 ### Health Check
 ```
 GET /health
@@ -73,9 +82,30 @@ Response: {"status": "operational", "time": "..."}
 This pup runs four services:
 
 1. **spvnode**: Libdogecoin SPV node (runs in continuous mode with full block sync)
-2. **payment-gateway**: REST API for payment processing
+2. **payment-gateway**: REST API for payment processing (uses gateway.sh wrapper script)
 3. **health-checker**: Monitors node sync status and reports metrics
 4. **log-stream**: Streams spvnode logs for debugging
+
+## Gateway Script Wrapper
+
+The `gateway.sh` script provides a unified interface to libdogecoin tools:
+
+- **generateAddress** - Creates new payment addresses using `such` CLI
+- **listAddresses** - Lists all generated addresses from storage
+- **broadcastTransaction** - Broadcasts transactions using `sendtx`
+
+This wrapper approach:
+- Simplifies tool integration
+- Provides consistent JSON output
+- Handles key storage and management
+- Enables easy command-line testing
+
+Example usage:
+```bash
+/bin/gateway.sh generateAddress "Order #123"
+/bin/gateway.sh listAddresses
+/bin/gateway.sh broadcastTransaction <hex>
+```
 
 ## Configuration
 
@@ -89,14 +119,15 @@ Configure the gateway through the Dogebox interface:
 The spvnode runs with these flags:
 - `-c` - Continuous mode (keeps running and waiting for new blocks)
 - `-b` - Full block mode (downloads full blocks for transaction verification)
+- `-p` - Checkpoint mode (uses checkpoints for faster initial sync)
 - `-w` - Wallet file path
 - `-h` - Headers database file path
 - `-l` - No prompt mode (loads wallet/headers automatically)
 
 ## Technical Details
 
-- **Language**: C library with Go services
-- **Dependencies**: libevent, libunistring
+- **Language**: C library with Go services and shell script wrappers
+- **Dependencies**: libevent, libunistring, awk, jq
 - **Network**: Connects to Dogecoin P2P network on port 22556
 - **Storage**: SQLite databases for headers and wallet data
 - **Security**: Local key generation using libdogecoin's cryptographic functions
