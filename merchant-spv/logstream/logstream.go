@@ -35,19 +35,19 @@ func main() {
 	}
 
 	scanner := bufio.NewScanner(logFile)
-	
+
 	for {
 		// Read new lines
 		for scanner.Scan() {
 			fmt.Println(scanner.Text())
 		}
-		
+
 		if err := scanner.Err(); err != nil {
 			log.Printf("Scanner error: %v", err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
-		
+
 		// Wait before checking for more lines
 		time.Sleep(2 * time.Second)
 	}

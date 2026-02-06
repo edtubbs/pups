@@ -49,7 +49,7 @@ func retrieveAuthCredentials() (string, string, error) {
 
 func queryNodeStatus(username, password string) (ChainStats, error) {
 	cliTool := fmt.Sprintf("%s/bin/dogecoin-cli", binaryPath)
-	
+
 	args := []string{
 		fmt.Sprintf("-rpcuser=%s", username),
 		fmt.Sprintf("-rpcpassword=%s", password),
@@ -75,9 +75,9 @@ func queryNodeStatus(username, password string) (ChainStats, error) {
 
 func transmitMetrics(stats ChainStats) {
 	metricsPayload := map[string]interface{}{
-		"network":         map[string]interface{}{"value": stats.NetworkName},
-		"current_height":  map[string]interface{}{"value": stats.CurrentBlocks},
-		"header_count":    map[string]interface{}{"value": stats.HeadersTotal},
+		"network":          map[string]interface{}{"value": stats.NetworkName},
+		"current_height":   map[string]interface{}{"value": stats.CurrentBlocks},
+		"header_count":     map[string]interface{}{"value": stats.HeadersTotal},
 		"awaiting_confirm": map[string]interface{}{"value": 0},
 		"daily_confirmed":  map[string]interface{}{"value": 0},
 	}
@@ -88,8 +88,8 @@ func transmitMetrics(stats ChainStats) {
 		return
 	}
 
-	endpoint := fmt.Sprintf("http://%s:%s/dbx/metrics", 
-		os.Getenv("DBX_HOST"), 
+	endpoint := fmt.Sprintf("http://%s:%s/dbx/metrics",
+		os.Getenv("DBX_HOST"),
 		os.Getenv("DBX_PORT"))
 
 	resp, err := http.Post(endpoint, "application/json", strings.NewReader(string(jsonPayload)))

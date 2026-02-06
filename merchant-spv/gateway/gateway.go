@@ -29,7 +29,7 @@ type PaymentStatus struct {
 }
 
 type GatewayState struct {
-	mu       sync.RWMutex
+	mu        sync.RWMutex
 	addresses map[string]PaymentAddress
 	pending   []PaymentStatus
 }
@@ -55,7 +55,7 @@ func loadAuthData() (string, string, error) {
 
 func executeRPCCall(user, pass, method string, params ...interface{}) ([]byte, error) {
 	cliExec := fmt.Sprintf("%s/bin/dogecoin-cli", cliPath)
-	
+
 	cmdArgs := []string{
 		fmt.Sprintf("-rpcuser=%s", user),
 		fmt.Sprintf("-rpcpassword=%s", pass),
@@ -83,7 +83,7 @@ func generateNewAddress(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Label string `json:"label"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
