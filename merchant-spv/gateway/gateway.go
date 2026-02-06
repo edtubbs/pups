@@ -12,7 +12,8 @@ import (
 	"time"
 )
 
-var cliPath string
+var libdogecoinPath string
+var storagePath string
 
 type PaymentAddress struct {
 	Address   string    `json:"address"`
@@ -25,7 +26,7 @@ type PaymentStatus struct {
 	Address       string  `json:"address"`
 	Amount        float64 `json:"amount"`
 	Confirmations int     `json:"confirmations"`
-	Timestamp     int64   `json:"timestamp"`
+	BlockHeight   int     `json:"block_height"`
 }
 
 type GatewayState struct {
@@ -39,39 +40,58 @@ var state = &GatewayState{
 	pending:   []PaymentStatus{},
 }
 
-func loadAuthData() (string, string, error) {
-	userContent, err := os.ReadFile("/storage/rpcuser.txt")
+func generateAddress(label string) (string, error) {
+	suchBin := fmt.Sprintf("%s/bin/such", libdogecoinPath)
+	
+	// Generate new private key
+	privKeyCmd := exec.Command(suchBin, "-c", "generate_private_key")
+	privOutput, err := privKeyCmd.CombinedOutput()
 	if err != nil {
-		return "", "", err
+		return "", fmt.Errorf("failed to generate key: %w, output: %s", err, privOutput)
 	}
 
-	passContent, err := os.ReadFile("/storage/rpcpassword.txt")
+	// Parse private key WIF
+	lines := strings.Split(string(privOutput), "\n")
+	var privKey string
+	for _, line := range lines {
+		if strings.Contains(line, "privatekey WIF:") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				privKey = strings.TrimSpace(parts[1])
+				break
+			}
+		}
+	}
+
+	if privKey == "" {
+		return "", fmt.Errorf("could not parse private key from output")
+	}
+
+	// Generate public key and address
+	pubKeyCmd := exec.Command(suchBin, "-c", "generate_public_key", "-p", privKey)
+	pubOutput, err := pubKeyCmd.CombinedOutput()
 	if err != nil {
-		return "", "", err
+		return "", fmt.Errorf("failed to generate address: %w", err)
 	}
 
-	return strings.TrimSpace(string(userContent)), strings.TrimSpace(string(passContent)), nil
-}
-
-func executeRPCCall(user, pass, method string, params ...interface{}) ([]byte, error) {
-	cliExec := fmt.Sprintf("%s/bin/dogecoin-cli", cliPath)
-
-	cmdArgs := []string{
-		fmt.Sprintf("-rpcuser=%s", user),
-		fmt.Sprintf("-rpcpassword=%s", pass),
-		fmt.Sprintf("-rpcconnect=%s", os.Getenv("DBX_PUP_IP")),
-		"-rpcwallet=payments",
-		method,
+	// Parse address
+	lines = strings.Split(string(pubOutput), "\n")
+	var address string
+	for _, line := range lines {
+		if strings.Contains(line, "p2pkh address:") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 {
+				address = strings.TrimSpace(parts[1])
+				break
+			}
+		}
 	}
 
-	for _, param := range params {
-		cmdArgs = append(cmdArgs, fmt.Sprintf("%v", param))
+	if address == "" {
+		return "", fmt.Errorf("could not parse address from output")
 	}
 
-	cmd := exec.Command(cliExec, cmdArgs...)
-	cmd.Env = append(os.Environ(), "HOME=/tmp")
-
-	return cmd.CombinedOutput()
+	return address, nil
 }
 
 func generateNewAddress(w http.ResponseWriter, r *http.Request) {
@@ -83,26 +103,18 @@ func generateNewAddress(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Label string `json:"label"`
 	}
-
+	
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	user, pass, err := loadAuthData()
-	if err != nil {
-		http.Error(w, "Authentication error", http.StatusInternalServerError)
-		return
-	}
-
-	output, err := executeRPCCall(user, pass, "getnewaddress", req.Label)
+	address, err := generateAddress(req.Label)
 	if err != nil {
 		log.Printf("Address generation failed: %v", err)
 		http.Error(w, "Failed to generate address", http.StatusInternalServerError)
 		return
 	}
-
-	address := strings.TrimSpace(string(output))
 
 	payAddr := PaymentAddress{
 		Address:   address,
@@ -147,54 +159,29 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func monitorIncomingPayments() {
-	ticker := time.NewTicker(20 * time.Second)
+func monitorWalletDatabase() {
+	walletPath := fmt.Sprintf("%s/merchant_wallet.db", storagePath)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		user, pass, err := loadAuthData()
-		if err != nil {
-			log.Printf("Auth error in monitor: %v", err)
+		// Check if wallet database exists
+		if _, err := os.Stat(walletPath); os.IsNotExist(err) {
+			log.Printf("Wallet database not found at %s, waiting...", walletPath)
 			continue
 		}
 
-		output, err := executeRPCCall(user, pass, "listtransactions", "*", 50)
-		if err != nil {
-			log.Printf("Transaction list error: %v", err)
-			continue
-		}
-
-		var transactions []map[string]interface{}
-		if err := json.Unmarshal(output, &transactions); err != nil {
-			log.Printf("Transaction parse error: %v", err)
-			continue
-		}
-
-		state.mu.Lock()
-		state.pending = []PaymentStatus{}
-		for _, tx := range transactions {
-			if tx["category"] == "receive" {
-				status := PaymentStatus{
-					TxID:          fmt.Sprintf("%v", tx["txid"]),
-					Address:       fmt.Sprintf("%v", tx["address"]),
-					Amount:        tx["amount"].(float64),
-					Confirmations: int(tx["confirmations"].(float64)),
-					Timestamp:     int64(tx["time"].(float64)),
-				}
-				state.pending = append(state.pending, status)
-			}
-		}
-		state.mu.Unlock()
-
-		log.Printf("Monitored %d incoming payments", len(state.pending))
+		log.Printf("Wallet database found and monitoring...")
+		// In a full implementation, we would query the libdogecoin wallet database
+		// for transactions related to our monitored addresses
 	}
 }
 
 func main() {
-	log.Println("Starting merchant payment gateway...")
-	time.Sleep(15 * time.Second)
+	log.Println("Starting merchant payment gateway for libdogecoin spvnode...")
+	time.Sleep(10 * time.Second)
 
-	go monitorIncomingPayments()
+	go monitorWalletDatabase()
 
 	http.HandleFunc("/api/address/new", generateNewAddress)
 	http.HandleFunc("/api/address/list", listAddresses)

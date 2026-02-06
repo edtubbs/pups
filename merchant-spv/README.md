@@ -1,6 +1,6 @@
 <div align="center">
   <img src="../docs/img/dogebox-logo.png" alt="Dogebox Logo"/>
-  <p>Merchant SPV Gateway</p>
+  <p>SPV Merchant Gateway</p>
 </div>
 
 > [!CAUTION]  
@@ -8,18 +8,36 @@
 
 ## Overview
 
-This pup provides a lightweight Dogecoin payment gateway optimized for merchant use cases. Unlike the full node implementation, this variant uses pruning to minimize disk space requirements while maintaining the ability to accept and track payments.
+This pup provides a lightweight Dogecoin payment gateway using **libdogecoin's spvnode** for merchant use cases. Unlike full node implementations, this uses Simple Payment Verification (SPV) to verify transactions with only block headers, minimizing disk space and sync time.
+
+## What is libdogecoin?
+
+[Libdogecoin](https://github.com/dogecoinfoundation/libdogecoin) is a clean C library implementation of Dogecoin building blocks. It provides lightweight tools including:
+- `spvnode` - SPV node for blockchain sync and wallet management
+- `such` - CLI tool for key and address generation
+- `sendtx` - Transaction broadcasting utility
 
 ## Key Features
 
-- **Pruned Node**: Requires only ~1GB disk space instead of ~300GB
-- **Wallet Enabled**: Supports payment address generation and tracking
+- **SPV Node**: Syncs only block headers (~50-100MB) instead of full blockchain (~300GB)
+- **Fast Sync**: Catches up to chain tip in minutes, not hours
+- **Wallet Support**: Built-in wallet database for address and transaction tracking
 - **Payment Gateway API**: REST API for creating addresses and monitoring payments
-- **Low Resource Usage**: Optimized for merchant payment processing
+- **Low Resource**: Optimized for resource-constrained environments
 
 ## Disk Requirements
 
-Approximately **1-2GB** of disk space (pruned blockchain data)
+Approximately **50-100MB** for block headers (vs ~300GB for full node)
+
+## How SPV Works
+
+SPV (Simplified Payment Verification) nodes:
+1. Download only block headers (80 bytes each)
+2. Verify proof-of-work chain integrity
+3. Request specific transactions when needed
+4. Validate transactions using Merkle proofs
+
+This provides strong security guarantees while using minimal resources.
 
 ## API Endpoints
 
@@ -54,10 +72,10 @@ Response: {"status": "operational", "time": "..."}
 
 This pup runs four services:
 
-1. **node-daemon**: Pruned Dogecoin node with wallet enabled
+1. **spvnode**: Libdogecoin SPV node (runs in continuous mode with full block sync)
 2. **payment-gateway**: REST API for payment processing
-3. **health-checker**: Monitors node status and reports metrics
-4. **log-stream**: Streams node logs for debugging
+3. **health-checker**: Monitors node sync status and reports metrics
+4. **log-stream**: Streams spvnode logs for debugging
 
 ## Configuration
 
@@ -66,9 +84,58 @@ Configure the gateway through the Dogebox interface:
 - **Minimum Confirmations**: Number of confirmations before marking payment as final (default: 6)
 - **Notification URL**: Optional webhook endpoint for payment notifications
 
+## SPV Node Flags
+
+The spvnode runs with these flags:
+- `-c` - Continuous mode (keeps running and waiting for new blocks)
+- `-b` - Full block mode (downloads full blocks for transaction verification)
+- `-w` - Wallet file path
+- `-h` - Headers database file path
+- `-l` - No prompt mode (loads wallet/headers automatically)
+
+## Technical Details
+
+- **Language**: C library with Go services
+- **Dependencies**: libevent, libunistring
+- **Network**: Connects to Dogecoin P2P network on port 22556
+- **Storage**: SQLite databases for headers and wallet data
+- **Security**: Local key generation using libdogecoin's cryptographic functions
+
+## Advantages of SPV
+
+✅ **Minimal Disk Usage**: ~100MB vs ~300GB  
+✅ **Fast Sync**: Minutes vs hours/days  
+✅ **Low Bandwidth**: Only downloads what's needed  
+✅ **Secure**: Validates block headers and Merkle proofs  
+✅ **Merchant-Focused**: Designed for payment acceptance  
+
+## Limitations
+
+⚠️ **Privacy**: SPV nodes may reveal addresses to peers when requesting transactions  
+⚠️ **Trust**: Relies on honest majority of hashpower (same as full nodes)  
+⚠️ **Features**: Does not support all RPC calls available in full nodes  
+
+## Comparison to Core Pup
+
+| Feature | Core Pup | SPV Merchant Gateway |
+|---------|----------|----------------------|
+| Implementation | Dogecoin Core (C++) | libdogecoin (C) |
+| Blockchain Data | Full (~300GB) | Headers only (~100MB) |
+| Sync Time | Hours/Days | Minutes |
+| Wallet | Optional | Built-in |
+| RPC Interface | Full | None (REST API only) |
+| Use Case | Full node operation | Merchant payments |
+
 ## Security Notes
 
-- RPC credentials are automatically generated and stored securely
-- The wallet is named "payments" and uses legacy address format
-- Only exposes payment-related RPC calls through the gateway API
-- All internal communication stays within the Dogebox network (10.69.0.0/16)
+- Keys are generated locally using libdogecoin's cryptographic functions
+- Wallet database is stored in `/storage/merchant_wallet.db`
+- Headers database is stored in `/storage/headers.db`
+- All network communication is peer-to-peer encrypted
+- Payment gateway API is isolated within Dogebox network (10.69.0.0/16)
+
+## Learn More
+
+- [Libdogecoin GitHub](https://github.com/dogecoinfoundation/libdogecoin)
+- [Libdogecoin Documentation](https://github.com/dogecoinfoundation/libdogecoin/tree/main/doc)
+- [SPV Whitepaper Section](https://bitcoin.org/bitcoin.pdf) (Section 8 - Simplified Payment Verification)

@@ -1,11 +1,11 @@
 {
   "manifestVersion": 1,
   "meta": {
-    "name": "Merchant SPV Gateway",
+    "name": "SPV Merchant Gateway",
     "version": "0.0.1",
     "logoPath": "",
-    "shortDescription": "Lightweight payment processor for Dogecoin merchants",
-    "longDescription": "A pruned node implementation optimized for merchant payment acceptance with minimal disk footprint"
+    "shortDescription": "Libdogecoin SPV node for merchant payments",
+    "longDescription": "SPV Merchant Gateway uses libdogecoin's spvnode to provide a lightweight payment verification solution for merchants without downloading the full blockchain"
   },
   "config": {
     "sections": [
@@ -37,7 +37,7 @@
     },
     "services": [
       {
-        "name": "node-daemon",
+        "name": "spvnode",
         "command": {
           "exec": "/bin/start-node.sh",
           "cwd": "",
@@ -78,15 +78,6 @@
         "listenOnHost": true
       },
       {
-        "name": "json-rpc",
-        "type": "http",
-        "port": 22555,
-        "interfaces": [
-          "node-rpc"
-        ],
-        "listenOnHost": false
-      },
-      {
         "name": "gateway-http",
         "type": "http",
         "port": 8080,
@@ -99,21 +90,6 @@
     "requiresInternet": true
   },
   "interfaces": [
-    {
-      "name": "node-rpc",
-      "version": "0.0.1",
-      "permissionGroups": [
-        {
-          "name": "NodeRPC",
-          "description": "JSON-RPC interface for node queries",
-          "severity": 2,
-          "routes": [
-            "/*"
-          ],
-          "port": 0
-        }
-      ]
-    },
     {
       "name": "gateway-api",
       "version": "0.0.1",
