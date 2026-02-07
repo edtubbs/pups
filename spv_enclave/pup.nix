@@ -34,14 +34,17 @@ let
         echo "============================================" >> "${storageDirectory}/output.log"
         echo "" >> "${storageDirectory}/output.log"
         
-        # YubiKey (TOTP) path - capture mnemonic directly to environment variable
+        # YubiKey (TOTP) path - capture mnemonic directly to environment variable (not logged for security)
         export MNEMONIC_PHRASE=$({ sleep 1; printf '\n'; sleep 1; printf 'y\n'; } | \
           SHELL=/run/current-system/sw/bin/bash \
-          ${util-linux}/bin/script -q -e -c "${optee_libdogecoin}/bin/optee_libdogecoin -c generate_mnemonic -z" /dev/null 2>&1 | tee -a "${storageDirectory}/output.log")
+          ${util-linux}/bin/script -q -e -c "${optee_libdogecoin}/bin/optee_libdogecoin -c generate_mnemonic -z" /dev/null 2>&1)
         
         echo "" >> "${storageDirectory}/output.log"
+        echo "🔐 Mnemonic generated successfully!" >> "${storageDirectory}/output.log"
+        echo "📊 View your mnemonic in the Metrics dashboard" >> "${storageDirectory}/output.log"
+        echo "⚠️  This is a ONE-TIME display - save it now!" >> "${storageDirectory}/output.log"
         echo "============================================" >> "${storageDirectory}/output.log"
-        echo "Mnemonic displayed above. Starting wallet initialization..." >> "${storageDirectory}/output.log"
+        echo "Starting wallet initialization..." >> "${storageDirectory}/output.log"
         echo "============================================" >> "${storageDirectory}/output.log"
 
         # Give the TEE a moment
