@@ -61,38 +61,92 @@ func fetchEndpoint(endpoint string) (string, error) {
     return string(body), nil
 }
 
-// readMnemonic reads the mnemonic from the temporary display file
-// Returns the mnemonic on first read, then deletes the file and returns a message
+// readMnemonic reads the mnemonic from output.log by parsing it
+// Returns the mnemonic on first read, then marks as viewed and returns a message
 func readMnemonic() string {
-    mnemonicFile := storageDirectory + "/.mnemonic_display"
     viewedFile := storageDirectory + "/.mnemonic_viewed"
+    outputLogFile := storageDirectory + "/output.log"
     
     // Check if already viewed
     if _, err := os.Stat(viewedFile); err == nil {
         return "[Mnemonic was displayed and should have been saved]"
     }
     
-    // Check if mnemonic file exists
-    if _, err := os.Stat(mnemonicFile); os.IsNotExist(err) {
+    // Check if output.log exists
+    if _, err := os.Stat(outputLogFile); os.IsNotExist(err) {
         return "[Waiting for wallet initialization...]"
     }
     
-    // Read the mnemonic
-    content, err := os.ReadFile(mnemonicFile)
+    // Read output.log to extract mnemonic
+    content, err := os.ReadFile(outputLogFile)
     if err != nil {
-        log.Printf("Error reading mnemonic file: %v", err)
-        return "[Error reading mnemonic]"
+        log.Printf("Error reading output.log: %v", err)
+        return "[Error reading output log]"
     }
     
-    mnemonic := strings.TrimSpace(string(content))
+    // Parse the mnemonic from output.log
+    mnemonic := extractMnemonicFromLog(string(content))
     
-    // If mnemonic is empty or too short, don't mark as viewed yet
-    if len(mnemonic) < 10 {
+    if mnemonic == "" {
         return "[Generating mnemonic...]"
     }
     
-    // Mark as viewed and delete the display file
-    // This happens after the metric is successfully submitted
+    // Return the mnemonic (will be marked as viewed after successful submission)
+    return mnemonic
+}
+
+// extractMnemonicFromLog extracts the mnemonic from the output.log content
+func extractMnemonicFromLog(content string) string {
+    // Look for the mnemonic between the warning markers
+    lines := strings.Split(content, "\n")
+    
+    // Find the section with "ONE-TIME MNEMONIC DISPLAY"
+    inMnemonicSection := false
+    startCapture := false
+    var mnemonicLines []string
+    
+    for _, line := range lines {
+        // Check if we've entered the mnemonic section
+        if strings.Contains(line, "ONE-TIME MNEMONIC DISPLAY") {
+            inMnemonicSection = true
+            continue
+        }
+        
+        // If in mnemonic section and we hit the separator after the warning messages
+        if inMnemonicSection && strings.Contains(line, "============================================") {
+            if startCapture {
+                // We've hit the end marker, stop capturing
+                break
+            } else {
+                // First occurrence after display warning - start capturing after this
+                startCapture = true
+                continue
+            }
+        }
+        
+        // Check if we've reached the "Mnemonic displayed above" message
+        if strings.Contains(line, "Mnemonic displayed above") {
+            break
+        }
+        
+        // Capture mnemonic lines (skip empty lines and instruction lines)
+        if startCapture && line != "" && 
+           !strings.Contains(line, "IMPORTANT:") && 
+           !strings.Contains(line, "This is your ONLY") &&
+           !strings.Contains(line, "It will NOT be saved") {
+            mnemonicLines = append(mnemonicLines, strings.TrimSpace(line))
+        }
+    }
+    
+    // Join the mnemonic lines
+    mnemonic := strings.Join(mnemonicLines, " ")
+    mnemonic = strings.TrimSpace(mnemonic)
+    
+    // Validate it looks like a mnemonic (should have multiple words)
+    if len(mnemonic) < 10 || !strings.Contains(mnemonic, " ") {
+        return ""
+    }
+    
     return mnemonic
 }
 
@@ -250,23 +304,17 @@ func submitMetrics(metrics Metrics) {
     markMnemonicAsViewed(metrics.Mnemonic)
 }
 
-// markMnemonicAsViewed marks the mnemonic as viewed and deletes the display file
+// markMnemonicAsViewed marks the mnemonic as viewed
 func markMnemonicAsViewed(mnemonic string) {
     // Only mark as viewed if we actually sent a real mnemonic (not a status message)
     if !strings.HasPrefix(mnemonic, "[") {
-        mnemonicFile := storageDirectory + "/.mnemonic_display"
         viewedFile := storageDirectory + "/.mnemonic_viewed"
         
         // Create the viewed marker file
         if err := os.WriteFile(viewedFile, []byte("viewed"), 0600); err != nil {
             log.Printf("Error creating viewed marker: %v", err)
-        }
-        
-        // Delete the mnemonic display file
-        if err := os.Remove(mnemonicFile); err != nil {
-            log.Printf("Error removing mnemonic display file: %v", err)
         } else {
-            log.Println("Mnemonic displayed successfully - file removed for security")
+            log.Println("Mnemonic displayed successfully - marked as viewed")
         }
     }
 }
