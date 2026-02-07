@@ -64,13 +64,7 @@ func fetchEndpoint(endpoint string) (string, error) {
 // readMnemonic reads the mnemonic from output.log by parsing it
 // Returns the mnemonic on first read, then marks as viewed and returns a message
 func readMnemonic() string {
-    viewedFile := storageDirectory + "/.mnemonic_viewed"
     outputLogFile := storageDirectory + "/output.log"
-    
-    // Check if already viewed
-    if _, err := os.Stat(viewedFile); err == nil {
-        return "[Mnemonic was displayed and should have been saved]"
-    }
     
     // Check if output.log exists
     if _, err := os.Stat(outputLogFile); os.IsNotExist(err) {
@@ -84,8 +78,15 @@ func readMnemonic() string {
         return "[Error reading output log]"
     }
     
+    contentStr := string(content)
+    
+    // Check if already viewed by looking for the viewed marker symbol
+    if strings.Contains(contentStr, "🔒 MNEMONIC_VIEWED") {
+        return "[Mnemonic was displayed and should have been saved]"
+    }
+    
     // Parse the mnemonic from output.log
-    mnemonic := extractMnemonicFromLog(string(content))
+    mnemonic := extractMnemonicFromLog(contentStr)
     
     if mnemonic == "" {
         return "[Generating mnemonic...]"
@@ -304,17 +305,25 @@ func submitMetrics(metrics Metrics) {
     markMnemonicAsViewed(metrics.Mnemonic)
 }
 
-// markMnemonicAsViewed marks the mnemonic as viewed
+// markMnemonicAsViewed marks the mnemonic as viewed by appending a marker to output.log
 func markMnemonicAsViewed(mnemonic string) {
     // Only mark as viewed if we actually sent a real mnemonic (not a status message)
     if !strings.HasPrefix(mnemonic, "[") {
-        viewedFile := storageDirectory + "/.mnemonic_viewed"
+        outputLogFile := storageDirectory + "/output.log"
         
-        // Create the viewed marker file
-        if err := os.WriteFile(viewedFile, []byte("viewed"), 0600); err != nil {
-            log.Printf("Error creating viewed marker: %v", err)
+        // Append the viewed marker symbol to output.log
+        marker := "\n🔒 MNEMONIC_VIEWED\n"
+        file, err := os.OpenFile(outputLogFile, os.O_APPEND|os.O_WRONLY, 0600)
+        if err != nil {
+            log.Printf("Error opening output.log for marker: %v", err)
+            return
+        }
+        defer file.Close()
+        
+        if _, err := file.WriteString(marker); err != nil {
+            log.Printf("Error writing viewed marker to output.log: %v", err)
         } else {
-            log.Println("Mnemonic displayed successfully - marked as viewed")
+            log.Println("Mnemonic displayed successfully - marked as viewed in output.log")
         }
     }
 }
