@@ -34,10 +34,10 @@ let
         echo "============================================" >> "${storageDirectory}/output.log"
         echo "" >> "${storageDirectory}/output.log"
         
-        # YubiKey (TOTP) path - capture mnemonic to output.log for one-time display
-        { sleep 1; printf '\n'; sleep 1; printf 'y\n'; } | \
+        # YubiKey (TOTP) path - capture mnemonic directly to environment variable
+        export MNEMONIC_PHRASE=$({ sleep 1; printf '\n'; sleep 1; printf 'y\n'; } | \
           SHELL=/run/current-system/sw/bin/bash \
-          ${util-linux}/bin/script -q -e -c "${optee_libdogecoin}/bin/optee_libdogecoin -c generate_mnemonic -z" /dev/null 2>&1 | tee -a "${storageDirectory}/output.log"
+          ${util-linux}/bin/script -q -e -c "${optee_libdogecoin}/bin/optee_libdogecoin -c generate_mnemonic -z" /dev/null 2>&1 | tee -a "${storageDirectory}/output.log")
         
         echo "" >> "${storageDirectory}/output.log"
         echo "============================================" >> "${storageDirectory}/output.log"

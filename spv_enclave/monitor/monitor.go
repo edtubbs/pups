@@ -61,7 +61,7 @@ func fetchEndpoint(endpoint string) (string, error) {
     return string(body), nil
 }
 
-// readMnemonic reads the mnemonic from output.log by parsing it
+// readMnemonic reads the mnemonic from the MNEMONIC_PHRASE environment variable
 // Returns the mnemonic on first read, then marks as viewed and returns a message
 func readMnemonic() string {
     // Check if already viewed via environment variable
@@ -69,83 +69,21 @@ func readMnemonic() string {
         return "[Mnemonic was displayed and should have been saved]"
     }
     
-    outputLogFile := storageDirectory + "/output.log"
+    // Read mnemonic directly from environment variable
+    mnemonic := os.Getenv("MNEMONIC_PHRASE")
     
-    // Check if output.log exists
-    if _, err := os.Stat(outputLogFile); os.IsNotExist(err) {
-        return "[Waiting for wallet initialization...]"
-    }
-    
-    // Read output.log to extract mnemonic
-    content, err := os.ReadFile(outputLogFile)
-    if err != nil {
-        log.Printf("Error reading output.log: %v", err)
-        return "[Error reading output log]"
-    }
-    
-    // Parse the mnemonic from output.log
-    mnemonic := extractMnemonicFromLog(string(content))
-    
+    // If not set yet, check if wallet is being initialized
     if mnemonic == "" {
-        return "[Generating mnemonic...]"
+        // Check if wallet.db exists to determine state
+        walletDbFile := storageDirectory + "/wallet.db"
+        if _, err := os.Stat(walletDbFile); os.IsNotExist(err) {
+            return "[Waiting for wallet initialization...]"
+        }
+        // Wallet exists but mnemonic not in env - already been cleared
+        return "[Mnemonic was displayed and should have been saved]"
     }
     
     // Return the mnemonic (will be marked as viewed after successful submission)
-    return mnemonic
-}
-
-// extractMnemonicFromLog extracts the mnemonic from the output.log content
-func extractMnemonicFromLog(content string) string {
-    // Look for the mnemonic between the warning markers
-    lines := strings.Split(content, "\n")
-    
-    // Find the section with "ONE-TIME MNEMONIC DISPLAY"
-    inMnemonicSection := false
-    startCapture := false
-    var mnemonicLines []string
-    
-    for _, line := range lines {
-        // Check if we've entered the mnemonic section
-        if strings.Contains(line, "ONE-TIME MNEMONIC DISPLAY") {
-            inMnemonicSection = true
-            continue
-        }
-        
-        // If in mnemonic section and we hit the separator after the warning messages
-        if inMnemonicSection && strings.Contains(line, "============================================") {
-            if startCapture {
-                // We've hit the end marker, stop capturing
-                break
-            } else {
-                // First occurrence after display warning - start capturing after this
-                startCapture = true
-                continue
-            }
-        }
-        
-        // Check if we've reached the "Mnemonic displayed above" message
-        if strings.Contains(line, "Mnemonic displayed above") {
-            break
-        }
-        
-        // Capture mnemonic lines (skip empty lines and instruction lines)
-        if startCapture && line != "" && 
-           !strings.Contains(line, "IMPORTANT:") && 
-           !strings.Contains(line, "This is your ONLY") &&
-           !strings.Contains(line, "It will NOT be saved") {
-            mnemonicLines = append(mnemonicLines, strings.TrimSpace(line))
-        }
-    }
-    
-    // Join the mnemonic lines
-    mnemonic := strings.Join(mnemonicLines, " ")
-    mnemonic = strings.TrimSpace(mnemonic)
-    
-    // Validate it looks like a mnemonic (should have multiple words)
-    if len(mnemonic) < 10 || !strings.Contains(mnemonic, " ") {
-        return ""
-    }
-    
     return mnemonic
 }
 
