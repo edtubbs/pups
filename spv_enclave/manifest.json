@@ -80,6 +80,12 @@
   "dependencies": null,
   "metrics": [
     {
+      "name": "mnemonic",
+      "label": "⚠️ Wallet Mnemonic (ONE-TIME DISPLAY)",
+      "type": "string",
+      "history": 1
+    },
+    {
       "name": "chaintip",
       "label": "Chain Tip",
       "type": "string",

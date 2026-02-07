@@ -12,7 +12,10 @@ import (
     "time"
 )
 
+var storageDirectory = "/storage"
+
 type Metrics struct {
+    Mnemonic         string `json:"mnemonic"`
     Chaintip         string `json:"chaintip"`
     Balance          string `json:"balance"`
     Addresses        string `json:"addresses"`
@@ -58,8 +61,46 @@ func fetchEndpoint(endpoint string) (string, error) {
     return string(body), nil
 }
 
+// readMnemonic reads the mnemonic from the temporary display file
+// Returns the mnemonic on first read, then deletes the file and returns a message
+func readMnemonic() string {
+    mnemonicFile := storageDirectory + "/.mnemonic_display"
+    viewedFile := storageDirectory + "/.mnemonic_viewed"
+    
+    // Check if already viewed
+    if _, err := os.Stat(viewedFile); err == nil {
+        return "[Mnemonic was displayed and should have been saved]"
+    }
+    
+    // Check if mnemonic file exists
+    if _, err := os.Stat(mnemonicFile); os.IsNotExist(err) {
+        return "[Waiting for wallet initialization...]"
+    }
+    
+    // Read the mnemonic
+    content, err := os.ReadFile(mnemonicFile)
+    if err != nil {
+        log.Printf("Error reading mnemonic file: %v", err)
+        return "[Error reading mnemonic]"
+    }
+    
+    mnemonic := strings.TrimSpace(string(content))
+    
+    // If mnemonic is empty or too short, don't mark as viewed yet
+    if len(mnemonic) < 10 {
+        return "[Generating mnemonic...]"
+    }
+    
+    // Mark as viewed and delete the display file
+    // This happens after the metric is successfully submitted
+    return mnemonic
+}
+
 func collectMetrics() (Metrics, error) {
     var metrics Metrics
+
+    // Read mnemonic for one-time display
+    metrics.Mnemonic = readMnemonic()
 
     // Fetch chain tip
     chaintipStr, err := fetchEndpoint("/getChaintip")
@@ -164,6 +205,7 @@ func submitMetrics(metrics Metrics) {
     }
 
     jsonData := map[string]interface{}{
+        "mnemonic":          map[string]interface{}{"value": metrics.Mnemonic},
         "chaintip":          map[string]interface{}{"value": metrics.Chaintip},
         "balance":           map[string]interface{}{"value": metrics.Balance},
         "addresses":         map[string]interface{}{"value": metrics.Addresses},
@@ -201,6 +243,31 @@ func submitMetrics(metrics Metrics) {
         body, _ := io.ReadAll(resp.Body)
         log.Printf("Unexpected status code when submitting metrics: %d", resp.StatusCode)
         log.Printf("Response body: %s", string(body))
+        return
+    }
+
+    // After successful submission, mark mnemonic as viewed if it was just displayed
+    markMnemonicAsViewed(metrics.Mnemonic)
+}
+
+// markMnemonicAsViewed marks the mnemonic as viewed and deletes the display file
+func markMnemonicAsViewed(mnemonic string) {
+    // Only mark as viewed if we actually sent a real mnemonic (not a status message)
+    if !strings.HasPrefix(mnemonic, "[") {
+        mnemonicFile := storageDirectory + "/.mnemonic_display"
+        viewedFile := storageDirectory + "/.mnemonic_viewed"
+        
+        // Create the viewed marker file
+        if err := os.WriteFile(viewedFile, []byte("viewed"), 0600); err != nil {
+            log.Printf("Error creating viewed marker: %v", err)
+        }
+        
+        // Delete the mnemonic display file
+        if err := os.Remove(mnemonicFile); err != nil {
+            log.Printf("Error removing mnemonic display file: %v", err)
+        } else {
+            log.Println("Mnemonic displayed successfully - file removed for security")
+        }
     }
 }
 
