@@ -64,6 +64,11 @@ func fetchEndpoint(endpoint string) (string, error) {
 // readMnemonic reads the mnemonic from output.log by parsing it
 // Returns the mnemonic on first read, then marks as viewed and returns a message
 func readMnemonic() string {
+    // Check if already viewed via environment variable
+    if os.Getenv("MNEMONIC_VIEWED") == "true" {
+        return "[Mnemonic was displayed and should have been saved]"
+    }
+    
     outputLogFile := storageDirectory + "/output.log"
     
     // Check if output.log exists
@@ -78,15 +83,8 @@ func readMnemonic() string {
         return "[Error reading output log]"
     }
     
-    contentStr := string(content)
-    
-    // Check if already viewed by looking for the viewed marker symbol
-    if strings.Contains(contentStr, "🔒 MNEMONIC_VIEWED") {
-        return "[Mnemonic was displayed and should have been saved]"
-    }
-    
     // Parse the mnemonic from output.log
-    mnemonic := extractMnemonicFromLog(contentStr)
+    mnemonic := extractMnemonicFromLog(string(content))
     
     if mnemonic == "" {
         return "[Generating mnemonic...]"
@@ -305,25 +303,15 @@ func submitMetrics(metrics Metrics) {
     markMnemonicAsViewed(metrics.Mnemonic)
 }
 
-// markMnemonicAsViewed marks the mnemonic as viewed by appending a marker to output.log
+// markMnemonicAsViewed marks the mnemonic as viewed by setting an environment variable
 func markMnemonicAsViewed(mnemonic string) {
     // Only mark as viewed if we actually sent a real mnemonic (not a status message)
     if !strings.HasPrefix(mnemonic, "[") {
-        outputLogFile := storageDirectory + "/output.log"
-        
-        // Append the viewed marker symbol to output.log
-        marker := "\n🔒 MNEMONIC_VIEWED\n"
-        file, err := os.OpenFile(outputLogFile, os.O_APPEND|os.O_WRONLY, 0600)
-        if err != nil {
-            log.Printf("Error opening output.log for marker: %v", err)
-            return
-        }
-        defer file.Close()
-        
-        if _, err := file.WriteString(marker); err != nil {
-            log.Printf("Error writing viewed marker to output.log: %v", err)
+        // Set environment variable to mark as viewed
+        if err := os.Setenv("MNEMONIC_VIEWED", "true"); err != nil {
+            log.Printf("Error setting MNEMONIC_VIEWED environment variable: %v", err)
         } else {
-            log.Println("Mnemonic displayed successfully - marked as viewed in output.log")
+            log.Println("Mnemonic displayed successfully - marked as viewed via environment variable")
         }
     }
 }
