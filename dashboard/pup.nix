@@ -14,24 +14,12 @@ let
   spvnode = pkgs.writeScriptBin "run.sh" ''
     #!${pkgs.stdenv.shell}
 
-    # Ensure delegated.extended.key exists
-    if [ ! -f "${storageDirectory}/delegated.extended.key" ]; then
-        echo "Error: delegated.extended.key not found"
-        exit 1
-    fi
-
-    # Derive a few external addresses from the delegated extended key
-    ADDRESS0=$(${spvnode_bin}/bin/such -c derive_child_keys -m "m/0/0" -p "$(cat ${storageDirectory}/delegated.extended.key)" | ${awk}/bin/awk '/p2pkh address:/ {print $3}')
-    ADDRESS1=$(${spvnode_bin}/bin/such -c derive_child_keys -m "m/0/1" -p "$(cat ${storageDirectory}/delegated.extended.key)" | ${awk}/bin/awk '/p2pkh address:/ {print $3}')
-    ADDRESS2=$(${spvnode_bin}/bin/such -c derive_child_keys -m "m/0/2" -p "$(cat ${storageDirectory}/delegated.extended.key)" | ${awk}/bin/awk '/p2pkh address:/ {print $3}')
-
     # Wait until DNS resolves 'seed.multidoge.org'
     ${host}/bin/host -w seed.multidoge.org 1.1.1.1
 
-    # Run spvnode with smpv, addresses, from a checkpoint and header-only until sync
+    # Run spvnode with smpv from a checkpoint and header-only until sync
     ${spvnode_bin}/bin/spvnode \
       -c -p -l -x \
-      -a "$ADDRESS0 $ADDRESS1 $ADDRESS2" \
       -w "${storageDirectory}/wallet.db" \
       -f "${storageDirectory}/headers.db" \
       -u "0.0.0.0:8888" \

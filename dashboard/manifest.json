@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "Libdogecoin dashb0rd",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "logoPath": "logo.png",
     "shortDescription": "Run a libdogecoin SPV node on your dogebox",
     "longDescription": "Libdogecoin SPV runs a minimal node on your dogebox",
@@ -12,7 +12,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "e934f3f4180cf1699cde98f96398673ada183abb20d0207e88a76331bf947720"
+      "nixFileSha256": "bcf53e9b22934d4f1b553b4583b4e89b5261178b897749d8254de6b53ab8a822"
     },
     "services": [
       { "name": "spvnode", "command": { "exec": "/bin/run.sh", "cwd": "", "env": null } },
@@ -37,12 +37,7 @@
   "dependencies": null,
   "metrics": [
     { "name": "chaintip", "label": "Chain Tip", "type": "string", "history": 1, "description": "Best known block (height/hash) reported by the SPV session." },
-    { "name": "addresses", "label": "Addresses", "type": "string", "history": 1, "description": "Wallet receive addresses tracked by the SPV monitor." },
-    { "name": "balance", "label": "Wallet Balance", "type": "string", "history": 1, "description": "Wallet balance across tracked addresses (DOGE)." },
-    { "name": "utxos", "label": "UTXOs", "type": "string", "history": 1, "description": "List of unspent transaction outputs detected by SPV." },
-    { "name": "transactions", "label": "Transactions", "type": "string", "history": 1, "description": "List of relevant transactions observed by SPV." },
 
-    { "name": "stats_blocks", "label": "Stats Blocks", "type": "float", "history": 100, "description": "Count of blocks in the rolling statistics window." },
     { "name": "stats_transactions", "label": "Stats Tx", "type": "float", "history": 100, "description": "Total transactions across the stats window." },
     { "name": "stats_tps", "label": "Stats TPS", "type": "float", "history": 100, "description": "Estimated transactions per second over the stats window." },
     { "name": "stats_volume", "label": "Stats Volume (DOGE)", "type": "float", "history": 100, "description": "Sum of output values across the stats window (DOGE)." },
@@ -67,15 +62,11 @@
 
     { "name": "uptime_sec", "label": "Uptime (s)", "type": "float", "history": 100, "description": "Seconds since the SPV client started." },
 
-    { "name": "smpv_enabled", "label": "SMPV Enabled", "type": "float", "history": 10, "description": "1 if SMPV (simple mempool view) is enabled, 0 if disabled." },
     { "name": "smpv_mempool_txs", "label": "SMPV Mempool TXs", "type": "float", "history": 200, "description": "Current count of transactions in the mempool snapshot." },
     { "name": "smpv_watchers", "label": "SMPV Watchers", "type": "float", "history": 100, "description": "Number of active SMPV watchers (internal counters)." },
     { "name": "smpv_confirmed", "label": "SMPV Confirmed", "type": "float", "history": 100, "description": "Total confirmed transactions observed by SMPV (session scope)." },
     { "name": "smpv_unconfirmed", "label": "SMPV Unconfirmed", "type": "float", "history": 100, "description": "Total unconfirmed transactions tracked by SMPV (session scope)." },
     { "name": "smpv_total_bytes", "label": "SMPV Total Bytes", "type": "float", "history": 100, "description": "Approximate serialized size of mempool transactions tracked (bytes)." },
-    { "name": "smpv_last_seen_age_sec", "label": "SMPV Last Seen Age (s)", "type": "float", "history": 100, "description": "Seconds since the most recently observed mempool transaction." },
-    { "name": "smpv_last_seen_txid", "label": "SMPV Last TXID", "type": "string", "history": 200, "description": "Transaction observed by SMPV (session scope)." },
-    { "name": "metadata", "label": "SMPV Last TXID", "type": "string", "history": 200, "description": "Transaction observed by SMPV (session scope)." },
 
     { "name": "smpv_types_p2pk", "label": "SMPV P2PK outs", "type": "float", "history": 200, "description": "Count of P2PK outputs in current mempool snapshot." },
     { "name": "smpv_types_p2pkh", "label": "SMPV P2PKH outs", "type": "float", "history": 200, "description": "Count of P2PKH outputs in current mempool snapshot." },
@@ -84,9 +75,7 @@
     { "name": "smpv_types_op_return", "label": "SMPV OP_RETURN outs", "type": "float", "history": 200, "description": "Count of OP_RETURN outputs in current mempool snapshot." },
     { "name": "smpv_types_nonstandard", "label": "SMPV Nonstandard outs", "type": "float", "history": 200, "description": "Count of nonstandard outputs in current mempool snapshot." },
     { "name": "smpv_types_vout_total", "label": "SMPV Total vouts", "type": "float", "history": 200, "description": "Total outputs across all mempool transactions in current snapshot." },
-    { "name": "smpv_coinbase_txs", "label": "SMPV Coinbase TXs", "type": "float", "history": 200, "description": "Count of coinbase transactions observed across stats/session context." },
-
-    { "name": "disk_used_pct", "label": "Disk Usage (SPV storage)", "type": "float", "section": "stats" }
+    { "name": "smpv_coinbase_txs", "label": "SMPV Coinbase TXs", "type": "float", "history": 200, "description": "Count of coinbase transactions observed across stats/session context." }
 
   ]
 }
