@@ -3,8 +3,8 @@
 let
   storageDirectory = "/storage";
   spvnode_bin = pkgs.callPackage (pkgs.fetchurl {
-    url = "https://raw.githubusercontent.com/edtubbs/dogebox-nur-packages/3b4a0ac22beb09e8b2349e4ef14ba9861256d13b/pkgs/libdogecoin/default.nix";
-    sha256 = "sha256-B5/asIvX/P7S1HBjgY2jReOVVxws54uzU4gYJBGRuSo=";
+    url = "https://raw.githubusercontent.com/edtubbs/dogebox-nur-packages/455afff9dc44e82303b36cfbc5a8c5f3245bdf58/pkgs/libdogecoin/default.nix";
+    sha256 = "sha256-/mkJtzdKanGuyd7NSqTBhWki2H43Wy1Vfpw+7DkSK+g=";
   }) {
   };
 
