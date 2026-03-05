@@ -187,15 +187,15 @@ func parseKeyValueLines(input string) map[string]string {
     return m
 }
 
-func sampleMeta(stats map[string]string) map[string]interface{} {
-    meta := map[string]interface{}{"timestamp": time.Now().Unix()}
+func sampleMeta(stats map[string]string, fallbackTs int64) map[string]interface{} {
+    meta := map[string]interface{}{"timestamp": fallbackTs}
 
     txTs := strings.TrimSpace(stats["last_seen_ts"])
     if txTs != "" {
         if f, ok := tryParseFlexibleFloat(txTs); ok {
             meta["timestamp"] = int64(f)
         } else {
-            meta["timestamp"] = txTs
+            log.Printf("Failed to parse last_seen_ts as numeric timestamp: %s", txTs)
         }
     }
 
@@ -212,7 +212,8 @@ func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]st
 
     // Difficulty from bits (works with hex or decimal)
     chainDiff := difficultyFromBitsString(chainTipBitsStr)
-    tsmeta := sampleMeta(stats)
+    sampleTs := time.Now().Unix()
+    tsmeta := sampleMeta(stats, sampleTs)
 
     payload := map[string]interface{}{
         // Basics
