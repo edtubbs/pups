@@ -187,19 +187,18 @@ func parseKeyValueLines(input string) map[string]string {
     return m
 }
 
-func sampleMeta(stats map[string]string, fallbackTs int64) map[string]interface{} {
-    meta := map[string]interface{}{"timestamp": fallbackTs}
-
-    txTs := strings.TrimSpace(stats["last_seen_ts"])
-    if txTs != "" {
-        if f, ok := tryParseFlexibleFloat(txTs); ok {
-            meta["timestamp"] = int64(f)
-        } else {
-            log.Printf("Failed to parse last_seen_ts as numeric timestamp: %s", txTs)
-        }
+func sampleMeta(stats map[string]string) map[string]interface{} {
+    lastSeenTs := strings.TrimSpace(stats["last_seen_ts"])
+    if lastSeenTs == "" {
+        return nil
     }
 
-    return meta
+    if f, ok := tryParseFlexibleFloat(lastSeenTs); ok {
+        return map[string]interface{}{"timestamp": int64(f)}
+    }
+
+    log.Printf("Failed to parse last_seen_ts as numeric timestamp: %s", lastSeenTs)
+    return nil
 }
 
 func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]string) {
@@ -212,8 +211,7 @@ func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]st
 
     // Difficulty from bits (works with hex or decimal)
     chainDiff := difficultyFromBitsString(chainTipBitsStr)
-    sampleTs := time.Now().Unix()
-    tsmeta := sampleMeta(stats, sampleTs)
+    tsmeta := sampleMeta(stats)
 
     payload := map[string]interface{}{
         // Basics
