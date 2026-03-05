@@ -187,20 +187,6 @@ func parseKeyValueLines(input string) map[string]string {
     return m
 }
 
-func sampleMeta(stats map[string]string) map[string]interface{} {
-    lastSeenTs := strings.TrimSpace(stats["last_seen_ts"])
-    if lastSeenTs == "" {
-        return map[string]interface{}{}
-    }
-
-    if f, ok := tryParseFlexibleFloat(lastSeenTs); ok {
-        return map[string]interface{}{"timestamp": int64(f)}
-    }
-
-    log.Printf("Failed to parse last_seen_ts as numeric timestamp: %s", lastSeenTs)
-    return map[string]interface{}{}
-}
-
 func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]string) {
     client := &http.Client{Timeout: 10 * time.Second}
 
@@ -211,8 +197,6 @@ func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]st
 
     // Difficulty from bits (works with hex or decimal)
     chainDiff := difficultyFromBitsString(chainTipBitsStr)
-    tsmeta := sampleMeta(stats)
-
     payload := map[string]interface{}{
         // Basics
         "chaintip":     map[string]interface{}{"value": metrics.Chaintip},
@@ -222,35 +206,35 @@ func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]st
         "utxos":        map[string]interface{}{"value": metrics.UTXOs},
 
         // /stats?blocks=11 (numeric series)
-        "stats_blocks":               map[string]interface{}{"value": mustParseFloat(stats["blocks"]), "meta": tsmeta},
-        "stats_transactions":         map[string]interface{}{"value": mustParseFloat(stats["transactions"]), "meta": tsmeta},
-        "stats_tps":                  map[string]interface{}{"value": mustParseFloat(stats["tps"]), "meta": tsmeta},
-        "stats_volume":               map[string]interface{}{"value": mustParseFloat(stats["volume"]), "meta": tsmeta},
-        "stats_volume_koinu":         map[string]interface{}{"value": mustParseFloat(stats["volume_koinu"]), "meta": tsmeta},
-        "stats_median_fee_per_block": map[string]interface{}{"value": mustParseFloat(stats["median_fee_per_block"]), "meta": tsmeta},
-        "stats_avg_fee_per_block":    map[string]interface{}{"value": mustParseFloat(stats["avg_fee_per_block"]), "meta": tsmeta},
-        "stats_median_fee_per_kb":    map[string]interface{}{"value": mustParseFloat(stats["median_fee_per_kb"]), "meta": tsmeta},
-        "stats_avg_fee_per_kb":       map[string]interface{}{"value": mustParseFloat(stats["avg_fee_per_kb"]), "meta": tsmeta},
-        "stats_outputs":              map[string]interface{}{"value": mustParseFloat(stats["outputs"]), "meta": tsmeta},
-        "stats_bytes":                map[string]interface{}{"value": mustParseFloat(stats["bytes"]), "meta": tsmeta},
+        "stats_blocks":               map[string]interface{}{"value": mustParseFloat(stats["blocks"])},
+        "stats_transactions":         map[string]interface{}{"value": mustParseFloat(stats["transactions"])},
+        "stats_tps":                  map[string]interface{}{"value": mustParseFloat(stats["tps"])},
+        "stats_volume":               map[string]interface{}{"value": mustParseFloat(stats["volume"])},
+        "stats_volume_koinu":         map[string]interface{}{"value": mustParseFloat(stats["volume_koinu"])},
+        "stats_median_fee_per_block": map[string]interface{}{"value": mustParseFloat(stats["median_fee_per_block"])},
+        "stats_avg_fee_per_block":    map[string]interface{}{"value": mustParseFloat(stats["avg_fee_per_block"])},
+        "stats_median_fee_per_kb":    map[string]interface{}{"value": mustParseFloat(stats["median_fee_per_kb"])},
+        "stats_avg_fee_per_kb":       map[string]interface{}{"value": mustParseFloat(stats["avg_fee_per_kb"])},
+        "stats_outputs":              map[string]interface{}{"value": mustParseFloat(stats["outputs"])},
+        "stats_bytes":                map[string]interface{}{"value": mustParseFloat(stats["bytes"])},
         // (we leave difficulty to the chain-tip section to avoid duplication)
 
         // /smpvStats (mempool + script types)
-        "smpv_enabled":           map[string]interface{}{"value": mustParseFloat(stats["enabled"]), "meta": tsmeta},
-        "smpv_mempool_txs":       map[string]interface{}{"value": mustParseFloat(stats["mempool_txs"]), "meta": tsmeta},
-        "smpv_watchers":          map[string]interface{}{"value": mustParseFloat(stats["watchers"]), "meta": tsmeta},
-        "smpv_confirmed":         map[string]interface{}{"value": mustParseFloat(stats["confirmed"]), "meta": tsmeta},
-        "smpv_unconfirmed":       map[string]interface{}{"value": mustParseFloat(stats["unconfirmed"]), "meta": tsmeta},
-        "smpv_total_bytes":       map[string]interface{}{"value": mustParseFloat(stats["total_bytes"]), "meta": tsmeta},
-        "smpv_last_seen_age_sec": map[string]interface{}{"value": mustParseFloat(stats["last_seen_age_sec"]), "meta": tsmeta},
-        "smpv_types_p2pk":        map[string]interface{}{"value": mustParseFloat(stats["types_p2pk"]), "meta": tsmeta},
-        "smpv_types_p2pkh":       map[string]interface{}{"value": mustParseFloat(stats["types_p2pkh"]), "meta": tsmeta},
-        "smpv_types_p2sh":        map[string]interface{}{"value": mustParseFloat(stats["types_p2sh"]), "meta": tsmeta},
-        "smpv_types_multisig":    map[string]interface{}{"value": mustParseFloat(stats["types_multisig"]), "meta": tsmeta},
-        "smpv_types_op_return":   map[string]interface{}{"value": mustParseFloat(stats["types_op_return"]), "meta": tsmeta},
-        "smpv_types_nonstandard": map[string]interface{}{"value": mustParseFloat(stats["types_nonstandard"]), "meta": tsmeta},
-        "smpv_types_vout_total":  map[string]interface{}{"value": mustParseFloat(stats["types_vout_total"]), "meta": tsmeta},
-        "smpv_coinbase_txs":      map[string]interface{}{"value": mustParseFloat(stats["coinbase_txs"]), "meta": tsmeta},
+        "smpv_enabled":           map[string]interface{}{"value": mustParseFloat(stats["enabled"])},
+        "smpv_mempool_txs":       map[string]interface{}{"value": mustParseFloat(stats["mempool_txs"])},
+        "smpv_watchers":          map[string]interface{}{"value": mustParseFloat(stats["watchers"])},
+        "smpv_confirmed":         map[string]interface{}{"value": mustParseFloat(stats["confirmed"])},
+        "smpv_unconfirmed":       map[string]interface{}{"value": mustParseFloat(stats["unconfirmed"])},
+        "smpv_total_bytes":       map[string]interface{}{"value": mustParseFloat(stats["total_bytes"])},
+        "smpv_last_seen_age_sec": map[string]interface{}{"value": mustParseFloat(stats["last_seen_age_sec"])},
+        "smpv_types_p2pk":        map[string]interface{}{"value": mustParseFloat(stats["types_p2pk"])},
+        "smpv_types_p2pkh":       map[string]interface{}{"value": mustParseFloat(stats["types_p2pkh"])},
+        "smpv_types_p2sh":        map[string]interface{}{"value": mustParseFloat(stats["types_p2sh"])},
+        "smpv_types_multisig":    map[string]interface{}{"value": mustParseFloat(stats["types_multisig"])},
+        "smpv_types_op_return":   map[string]interface{}{"value": mustParseFloat(stats["types_op_return"])},
+        "smpv_types_nonstandard": map[string]interface{}{"value": mustParseFloat(stats["types_nonstandard"])},
+        "smpv_types_vout_total":  map[string]interface{}{"value": mustParseFloat(stats["types_vout_total"])},
+        "smpv_coinbase_txs":      map[string]interface{}{"value": mustParseFloat(stats["coinbase_txs"])},
 
         // /chainStats (session totals)
         "headers_bytes":        map[string]interface{}{"value": mustParseFloat(chain["headers_bytes"])},
