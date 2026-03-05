@@ -1,2 +1,3 @@
 .DS_Store
 result
+root/pkg/mod/cache/lock
