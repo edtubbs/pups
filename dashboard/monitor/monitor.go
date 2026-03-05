@@ -228,7 +228,6 @@ func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]st
         "smpv_unconfirmed":       map[string]interface{}{"value": mustParseFloat(stats["unconfirmed"])},
         "smpv_total_bytes":       map[string]interface{}{"value": mustParseFloat(stats["total_bytes"])},
         "smpv_last_seen_age_sec": map[string]interface{}{"value": mustParseFloat(stats["last_seen_age_sec"])},
-        "smpv_last_seen_txid":    map[string]interface{}{"value": stats["last_seen_txid"]},
         "smpv_types_p2pk":        map[string]interface{}{"value": mustParseFloat(stats["types_p2pk"])},
         "smpv_types_p2pkh":       map[string]interface{}{"value": mustParseFloat(stats["types_p2pkh"])},
         "smpv_types_p2sh":        map[string]interface{}{"value": mustParseFloat(stats["types_p2sh"])},
