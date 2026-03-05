@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "Libdogecoin dashb0rd",
-    "version": "0.0.13",
+    "version": "0.0.14",
     "logoPath": "logo.png",
     "shortDescription": "Run a libdogecoin SPV node on your dogebox",
     "longDescription": "Libdogecoin SPV runs a minimal node on your dogebox",
