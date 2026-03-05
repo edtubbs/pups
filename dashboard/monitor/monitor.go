@@ -93,8 +93,8 @@ func collectMetrics() (Metrics, map[string]string, map[string]string, error) {
     }
     metrics.UTXOs, _ = parseUTXOsOrTxs(utxosStr)
 
-    // Stats over last N blocks
-    statsStr, err := fetchEndpoint(fmt.Sprintf("/stats24"))
+    // Stats over a 100-block window
+    statsStr, err := fetchEndpoint("/stats?blocks=100")
     if err != nil {
         return metrics, nil, nil, err
     }
@@ -205,7 +205,7 @@ func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]st
         "transactions": map[string]interface{}{"value": metrics.Transactions},
         "utxos":        map[string]interface{}{"value": metrics.UTXOs},
 
-        // /stats?blocks=11 (numeric series)
+        // /stats?blocks=100 (numeric series)
         "stats_blocks":               map[string]interface{}{"value": mustParseFloat(stats["blocks"])},
         "stats_transactions":         map[string]interface{}{"value": mustParseFloat(stats["transactions"])},
         "stats_tps":                  map[string]interface{}{"value": mustParseFloat(stats["tps"])},
