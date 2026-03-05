@@ -190,7 +190,7 @@ func parseKeyValueLines(input string) map[string]string {
 func sampleMeta(stats map[string]string) map[string]interface{} {
     lastSeenTs := strings.TrimSpace(stats["last_seen_ts"])
     if lastSeenTs == "" {
-        return nil
+        return map[string]interface{}{}
     }
 
     if f, ok := tryParseFlexibleFloat(lastSeenTs); ok {
@@ -198,7 +198,7 @@ func sampleMeta(stats map[string]string) map[string]interface{} {
     }
 
     log.Printf("Failed to parse last_seen_ts as numeric timestamp: %s", lastSeenTs)
-    return nil
+    return map[string]interface{}{}
 }
 
 func submitMetrics(metrics Metrics, stats map[string]string, chain map[string]string) {
