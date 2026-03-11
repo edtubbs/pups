@@ -11,7 +11,22 @@
     }
   },
   "config": {
-    "sections": null
+    "sections": [
+      {
+        "name": "display",
+        "label": "Display Settings",
+        "fields": [
+          {
+            "name": "SHOW_MNEMONIC",
+            "label": "Show Mnemonic in Metrics",
+            "type": "toggle",
+            "required": false,
+            "default": "false",
+            "help": "Toggle to reveal the wallet mnemonic in the metrics dashboard. Keep disabled unless you need to view it."
+          }
+        ]
+      }
+    ]
   },
   "container": {
     "build": {
@@ -83,7 +98,8 @@
       "name": "mnemonic",
       "label": "⚠️ Wallet Mnemonic (ONE-TIME DISPLAY)",
       "type": "string",
-      "history": 1
+      "history": 1,
+      "sensitive": true
     },
     {
       "name": "chaintip",

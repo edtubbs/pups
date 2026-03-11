@@ -17,10 +17,18 @@ It will generate a new wallet and start block sync from the last checkpoint.
 1. **Graphical Display (Metrics)**: The mnemonic appears as a metric in your Dogebox dashboard
 2. **Logger Output**: Shows notification that mnemonic was generated (but NOT the actual mnemonic for security)
 
-- ✅ The mnemonic is displayed clearly in the Metrics dashboard with warning messages
-- ✅ This is your **ONLY** opportunity to see and save the mnemonic
+### Mnemonic Display Settings
+
+- 🔒 **Default State**: The mnemonic is **hidden/masked** by default for security
+- 👁️ **Show Mnemonic Toggle**: Go to **Settings → Display Settings** and enable **"Show Mnemonic in Metrics"** to reveal it
+- ⚠️ **One-Time Availability**: The mnemonic is only available during the first initialization
+- 💾 **Save Immediately**: Once you reveal and view the mnemonic, save it immediately in a secure location
+
+### Security Features
+
+- ✅ The mnemonic is **masked by default** - you must explicitly enable display
 - ✅ The mnemonic is **NOT** saved to disk or logged for security reasons
 - ✅ After being displayed once, the metric will show "[Mnemonic was displayed and should have been saved]"
 - ✅ If you miss it, you will need to recreate the wallet
 
-**Save your mnemonic phrase immediately when you see it in the Metrics dashboard!**
+**To view your mnemonic: Enable "Show Mnemonic in Metrics" in Settings, then check the Metrics dashboard!**

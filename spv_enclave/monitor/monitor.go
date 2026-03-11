@@ -83,6 +83,16 @@ func readMnemonic() string {
         return "[Mnemonic was displayed and should have been saved]"
     }
     
+    // Check if user has enabled mnemonic display
+    showMnemonic := os.Getenv("SHOW_MNEMONIC")
+    if showMnemonic != "true" {
+        // Return masked version
+        words := strings.Fields(mnemonic)
+        if len(words) > 0 {
+            return "[Hidden - Enable 'Show Mnemonic' in settings to reveal]"
+        }
+    }
+    
     // Return the mnemonic (will be marked as viewed after successful submission)
     return mnemonic
 }
