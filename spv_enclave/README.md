@@ -12,24 +12,28 @@ It will generate a new wallet and start block sync from the last checkpoint.
 
 ## ⚠️ Important: One-Time Mnemonic Display
 
-**On first initialization**, this pup will display your wallet's mnemonic phrase **ONCE** via the Metrics dashboard:
+**On first initialization**, this pup will generate your wallet's mnemonic phrase. You must reveal it **ONCE** to save it:
 
 1. **Graphical Display (Metrics)**: The mnemonic appears as a metric in your Dogebox dashboard
 2. **Logger Output**: Shows notification that mnemonic was generated (but NOT the actual mnemonic for security)
 
-### Mnemonic Display Settings
+### How to Reveal Your Mnemonic
 
-- 👁️ **Default State**: The mnemonic is **visible by default** on first initialization
-- 🔒 **Hide Option**: After saving your mnemonic, you can disable **"Show Mnemonic in Metrics"** in **Settings → Display Settings** to hide it from view
-- ⚠️ **One-Time Availability**: The mnemonic is only available during the first initialization
-- 💾 **Save Immediately**: When you see the mnemonic in metrics, save it immediately in a secure location
+#### The mnemonic is **HIDDEN by default** for security. To reveal it:
+
+1. **View Metrics Dashboard** → You'll see: `[Hidden - Enable 'Show Mnemonic' in settings to reveal]`
+2. **Click the "Reveal Button"** → Go to **Settings → Display Settings → Enable "🔓 Reveal Wallet Mnemonic" toggle**
+3. **Return to Metrics** → The actual mnemonic words will now be visible
+4. **Save Your Mnemonic** → Copy and store it securely offline
+5. **Hide It Again** → Disable the toggle in Settings to hide the mnemonic
+6. **One-Time Only** → After you view it once, it becomes permanently hidden with message: `[Mnemonic was displayed and should have been saved]`
 
 ### Security Features
 
-- ✅ The mnemonic is **visible on first initialization** so you don't miss it
-- ✅ You can **hide it after saving** using the toggle in Settings
-- ✅ The mnemonic is **NOT** saved to disk or logged for security reasons
-- ✅ After being displayed once, the metric will show "[Mnemonic was displayed and should have been saved]"
-- ✅ If you miss it, you will need to recreate the wallet
+- 🔒 **Hidden by default** - Mnemonic starts masked, you must use reveal toggle
+- 🔓 **Reveal button** - The toggle in Settings acts as your reveal button
+- ⚠️ **One-time display** - Can only be viewed during first initialization
+- 💾 **Never persisted** - Not saved to disk or logged for security
+- 🔄 **Reversible hide** - Can disable toggle to hide it while still available
 
-**Important: The mnemonic appears in the Metrics dashboard immediately on first startup. Save it securely, then disable the toggle in Settings to hide it!**
+**Important: The toggle in Settings IS your reveal button. Enable it to see the mnemonic, save it securely, then disable the toggle to hide it again!**
