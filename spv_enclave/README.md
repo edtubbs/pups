@@ -14,26 +14,24 @@ It will generate a new wallet and start block sync from the last checkpoint.
 
 **On first initialization**, this pup will generate your wallet's mnemonic phrase. You must reveal it **ONCE** to save it:
 
-1. **Graphical Display (Metrics)**: The mnemonic appears as a metric in your Dogebox dashboard
-2. **Logger Output**: Shows notification that mnemonic was generated (but NOT the actual mnemonic for security)
-
 ### How to Reveal Your Mnemonic
 
 #### The mnemonic is **HIDDEN by default** for security. To reveal it:
 
-1. **View Metrics Dashboard** → You'll see: `[Hidden - Enable 'Show Mnemonic' in settings to reveal]`
-2. **Click the "Reveal Button"** → Go to **Settings → Display Settings → Enable "🔓 Reveal Wallet Mnemonic" toggle**
+1. **View Metrics** → You'll see: `[🔒 Hidden - Check 'Click to Reveal Mnemonic' in Wallet Security settings to view]`
+2. **Click Reveal Checkbox** → Go to **Settings → Wallet Security → Check "🔓 Click to Reveal Mnemonic"**
 3. **Return to Metrics** → The actual mnemonic words will now be visible
 4. **Save Your Mnemonic** → Copy and store it securely offline
-5. **Hide It Again** → Disable the toggle in Settings to hide the mnemonic
-6. **One-Time Only** → After you view it once, it becomes permanently hidden with message: `[Mnemonic was displayed and should have been saved]`
+5. **One-Time Only** → After you view it once, it permanently shows: `[Mnemonic was displayed and should have been saved]`
+
+> **Note:** The reveal checkbox is **separate from** the main "Enabled" toggle that controls the entire pup.
 
 ### Security Features
 
-- 🔒 **Hidden by default** - Mnemonic starts masked, you must use reveal toggle
-- 🔓 **Reveal button** - The toggle in Settings acts as your reveal button
+- 🔒 **Hidden by default** - Mnemonic starts masked, you must check the reveal box
+- 🔓 **Reveal checkbox** - Dedicated checkbox in Wallet Security settings
 - ⚠️ **One-time display** - Can only be viewed during first initialization
 - 💾 **Never persisted** - Not saved to disk or logged for security
-- 🔄 **Reversible hide** - Can disable toggle to hide it while still available
+- ✅ **Independent control** - Separate from pup enable/disable
 
-**Important: The toggle in Settings IS your reveal button. Enable it to see the mnemonic, save it securely, then disable the toggle to hide it again!**
+**Important: Go to Settings → Wallet Security → Check the reveal box to see your mnemonic, then save it securely!**

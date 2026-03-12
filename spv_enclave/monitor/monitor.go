@@ -83,13 +83,13 @@ func readMnemonic() string {
         return "[Mnemonic was displayed and should have been saved]"
     }
     
-    // Check if user has enabled mnemonic display
-    showMnemonic := os.Getenv("SHOW_MNEMONIC")
-    if showMnemonic != "true" {
-        // Return masked version
+    // Check if user has revealed the mnemonic via checkbox
+    revealMnemonic := os.Getenv("REVEAL_MNEMONIC")
+    if revealMnemonic != "true" {
+        // Return masked version with reveal instructions
         words := strings.Fields(mnemonic)
         if len(words) > 0 {
-            return "[Hidden - Enable 'Show Mnemonic' in settings to reveal]"
+            return "[🔒 Hidden - Check 'Click to Reveal Mnemonic' in Wallet Security settings to view]"
         }
     }
     
