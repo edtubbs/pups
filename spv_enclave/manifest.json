@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "Libdogecoin SPV Enclave",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "logoPath": "logo.png",
     "shortDescription": "Run a libdogecoin SPV node on your dogebox",
     "longDescription": "Libdogecoin SPV Enclave runs a minimal node on your dogebox with the key management enclave. Insert a Yubikey before operation.",
@@ -21,8 +21,8 @@
             "label": "Show Mnemonic in Metrics",
             "type": "toggle",
             "required": false,
-            "default": "false",
-            "help": "Toggle to reveal the wallet mnemonic in the metrics dashboard. Keep disabled unless you need to view it."
+            "default": "true",
+            "help": "When enabled, the wallet mnemonic will be visible in metrics on first initialization. Disable after saving your mnemonic to hide it from the dashboard."
           }
         ]
       }

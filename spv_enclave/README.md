@@ -19,16 +19,17 @@ It will generate a new wallet and start block sync from the last checkpoint.
 
 ### Mnemonic Display Settings
 
-- 🔒 **Default State**: The mnemonic is **hidden/masked** by default for security
-- 👁️ **Show Mnemonic Toggle**: Go to **Settings → Display Settings** and enable **"Show Mnemonic in Metrics"** to reveal it
+- 👁️ **Default State**: The mnemonic is **visible by default** on first initialization
+- 🔒 **Hide Option**: After saving your mnemonic, you can disable **"Show Mnemonic in Metrics"** in **Settings → Display Settings** to hide it from view
 - ⚠️ **One-Time Availability**: The mnemonic is only available during the first initialization
-- 💾 **Save Immediately**: Once you reveal and view the mnemonic, save it immediately in a secure location
+- 💾 **Save Immediately**: When you see the mnemonic in metrics, save it immediately in a secure location
 
 ### Security Features
 
-- ✅ The mnemonic is **masked by default** - you must explicitly enable display
+- ✅ The mnemonic is **visible on first initialization** so you don't miss it
+- ✅ You can **hide it after saving** using the toggle in Settings
 - ✅ The mnemonic is **NOT** saved to disk or logged for security reasons
 - ✅ After being displayed once, the metric will show "[Mnemonic was displayed and should have been saved]"
 - ✅ If you miss it, you will need to recreate the wallet
 
-**To view your mnemonic: Enable "Show Mnemonic in Metrics" in Settings, then check the Metrics dashboard!**
+**Important: The mnemonic appears in the Metrics dashboard immediately on first startup. Save it securely, then disable the toggle in Settings to hide it!**
