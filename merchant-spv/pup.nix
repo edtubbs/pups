@@ -11,12 +11,15 @@ let
   awk = pkgs.gawk;
   jq = pkgs.jq;
   host = pkgs.host;
+  util-linux = pkgs.util-linux;
+  optee_libdogecoin = pkgs."libdogecoin-optee-host";
 
   gatewayScript = pkgs.writeScriptBin "gateway.sh" ''
     #!${pkgs.stdenv.shell}
     set -euo pipefail
 
     STORAGE="${storageDirectory}"
+    OPTEE="${optee_libdogecoin}/bin/optee_libdogecoin"
     SUCH="${libdogecoinPackage}/bin/such"
     SENDTX="${libdogecoinPackage}/bin/sendtx"
     SPVNODE="${libdogecoinPackage}/bin/spvnode"
@@ -28,10 +31,12 @@ let
 Usage: gateway.sh <command> [options]
 
 Commands:
-  generateAddress [label]           Generate a new Dogecoin address
+  generateAddress [label]           Generate a new Dogecoin address (using OP-TEE secure enclave)
   listAddresses                     List generated addresses (from file)
-  getAddressBalance <address>       Check balance for an address
-  signTransaction <hex> <privkey>   Sign a raw transaction
+  signTransaction <hex>             Sign a raw transaction (using OP-TEE secure enclave)
+                    -o <acct>       Account index (default: 0)
+                    -l <change>     Change level (default: 0)
+                    -i <idx>        Address index (default: 0)
   broadcastTransaction <hex>        Broadcast a signed transaction
   
 Options for broadcastTransaction:
@@ -52,30 +57,32 @@ EOF
         generateAddress)
             label="''${1:-payment}"
             
-            # Generate new private key
-            privkey_output=$("$SUCH" -c generate_private_key 2>&1)
-            privkey=$(echo "$privkey_output" | "$AWK" '/privatekey WIF:/ {print $3}')
-            
-            if [ -z "$privkey" ]; then
-                echo "Error: Failed to generate private key"
-                exit 1
+            # Use OP-TEE secure enclave to generate address
+            # Generate address using the secure enclave (account 0, change level 0, next available index)
+            if [ ! -f "$STORAGE/address_index.txt" ]; then
+                echo "0" > "$STORAGE/address_index.txt"
             fi
             
-            # Generate public key and address
-            pubkey_output=$("$SUCH" -c generate_public_key -p "$privkey" 2>&1)
-            address=$(echo "$pubkey_output" | "$AWK" '/p2pkh address:/ {print $3}')
+            INDEX=$(cat "$STORAGE/address_index.txt")
+            
+            # Generate address using OP-TEE libdogecoin
+            address_output=$("$OPTEE" -c generate_address -z -o 0 -l 0 -i "$INDEX" 2>&1)
+            address=$(echo "$address_output" | "$AWK" '/Address generated:/ {print $3}')
             
             if [ -z "$address" ]; then
-                echo "Error: Failed to generate address"
+                echo "Error: Failed to generate address using OP-TEE secure enclave"
+                echo "Output: $address_output" >&2
                 exit 1
             fi
             
-            # Store address and key (in production, store securely)
-            echo "$address|$label|$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$STORAGE/addresses.txt"
-            echo "$address|$privkey" >> "$STORAGE/keys.txt"
+            # Increment index for next address
+            echo $((INDEX + 1)) > "$STORAGE/address_index.txt"
+            
+            # Store address (keys are stored securely in OP-TEE, not on filesystem)
+            echo "$address|$label|$(date -u +%Y-%m-%dT%H:%M:%SZ)|0|0|$INDEX" >> "$STORAGE/addresses.txt"
             
             # Output JSON
-            echo "{\"address\":\"$address\",\"label\":\"$label\",\"created_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+            echo "{\"address\":\"$address\",\"label\":\"$label\",\"created_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"account\":0,\"change_level\":0,\"index\":$INDEX}"
             ;;
             
         listAddresses)
@@ -86,16 +93,53 @@ EOF
             
             echo "["
             first=true
-            while IFS='|' read -r addr label created; do
+            while IFS='|' read -r addr label created acct change idx; do
                 if [ "$first" = true ]; then
                     first=false
                 else
                     echo ","
                 fi
-                echo -n "{\"address\":\"$addr\",\"label\":\"$label\",\"created_at\":\"$created\"}"
+                # Handle both old format (3 fields) and new format (6 fields)
+                if [ -z "$acct" ]; then
+                    echo -n "{\"address\":\"$addr\",\"label\":\"$label\",\"created_at\":\"$created\"}"
+                else
+                    echo -n "{\"address\":\"$addr\",\"label\":\"$label\",\"created_at\":\"$created\",\"account\":$acct,\"change_level\":$change,\"index\":$idx}"
+                fi
             done < "$STORAGE/addresses.txt"
             echo ""
             echo "]"
+            ;;
+        
+        signTransaction)
+            # Sign a raw transaction using OP-TEE secure enclave
+            RAW= ACCT=0 CHG=0 IDX=0
+            
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    -t) RAW="$2"; shift 2;;
+                    -o) ACCT="$2"; shift 2;;
+                    -l) CHG="$2"; shift 2;;
+                    -i) IDX="$2"; shift 2;;
+                    *) echo "Unknown option for signTransaction: $1"; usage;;
+                esac
+            done
+            
+            if [ -z "$RAW" ]; then
+                echo "Error: No transaction hex provided"
+                usage
+            fi
+            
+            # Sign using OP-TEE
+            signed_output=$("$OPTEE" -c sign_transaction -t "$RAW" -o "$ACCT" -l "$CHG" -i "$IDX" 2>&1)
+            signed=$(echo "$signed_output" | "$AWK" '/Transaction signed:/ {print $3}')
+            
+            if [ -z "$signed" ]; then
+                echo "Error: Failed to sign transaction using OP-TEE secure enclave"
+                echo "Output: $signed_output" >&2
+                exit 1
+            fi
+            
+            echo "{\"signed_hex\":\"$signed\",\"account\":$ACCT,\"change_level\":$CHG,\"index\":$IDX}"
             ;;
             
         broadcastTransaction)
@@ -213,5 +257,5 @@ EOF
   };
 in
 {
-  inherit nodeStartScript gatewayService healthService logstreamService gatewayScript awk jq host;
+  inherit nodeStartScript gatewayService healthService logstreamService gatewayScript awk jq host util-linux;
 }

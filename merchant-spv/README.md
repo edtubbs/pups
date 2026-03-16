@@ -10,19 +10,20 @@
 
 This pup provides a lightweight Dogecoin payment gateway using **libdogecoin's spvnode** for merchant use cases. Unlike full node implementations, this uses Simple Payment Verification (SPV) to verify transactions with only block headers, minimizing disk space and sync time.
 
-The gateway uses a **script wrapper approach** to expose libdogecoin tools (`spvnode`, `such`, `sendtx`) through a unified `gateway.sh` script, providing a clean interface for payment operations.
+The gateway uses a **script wrapper approach** to expose libdogecoin tools through a unified `gateway.sh` script. **Security is enhanced through OP-TEE (Open Portable Trusted Execution Environment)** which stores private keys in a secure enclave, ensuring they never touch the filesystem.
 
 ## What is libdogecoin?
 
 [Libdogecoin](https://github.com/dogecoinfoundation/libdogecoin) is a clean C library implementation of Dogecoin building blocks. It provides lightweight tools including:
 - `spvnode` - SPV node for blockchain sync and wallet management
-- `such` - CLI tool for key and address generation
+- `optee_libdogecoin` - Secure enclave operations for key management and transaction signing
 - `sendtx` - Transaction broadcasting utility
 
 ## Key Features
 
 - **SPV Node**: Syncs only block headers (~50-100MB) instead of full blockchain (~300GB)
 - **Fast Sync**: Catches up to chain tip in minutes, not hours
+- **Secure Key Storage**: Private keys stored in OP-TEE secure enclave, never on filesystem
 - **Wallet Support**: Built-in wallet database for address and transaction tracking
 - **Payment Gateway API**: REST API for creating addresses and monitoring payments
 - **Low Resource**: Optimized for resource-constrained environments
@@ -88,24 +89,45 @@ This pup runs four services:
 
 ## Gateway Script Wrapper
 
-The `gateway.sh` script provides a unified interface to libdogecoin tools:
+The `gateway.sh` script provides a unified interface to libdogecoin tools with OP-TEE security:
 
-- **generateAddress** - Creates new payment addresses using `such` CLI
+- **generateAddress** - Creates new payment addresses using OP-TEE secure enclave
+- **signTransaction** - Signs raw transactions using keys stored in OP-TEE secure enclave
 - **listAddresses** - Lists all generated addresses from storage
-- **broadcastTransaction** - Broadcasts transactions using `sendtx`
+- **broadcastTransaction** - Broadcasts signed transactions using `sendtx`
 
 This wrapper approach:
+- **Secure Key Management**: Private keys never touch the filesystem
 - Simplifies tool integration
 - Provides consistent JSON output
-- Handles key storage and management
 - Enables easy command-line testing
 
 Example usage:
 ```bash
+# Generate a new address (keys stored securely in OP-TEE)
 /bin/gateway.sh generateAddress "Order #123"
+
+# Sign a transaction (using OP-TEE secure enclave)
+/bin/gateway.sh signTransaction -t <raw_hex> -o 0 -l 0 -i 0
+
+# List all addresses
 /bin/gateway.sh listAddresses
-/bin/gateway.sh broadcastTransaction <hex>
+
+# Broadcast a signed transaction
+/bin/gateway.sh broadcastTransaction <signed_hex>
 ```
+
+## Security Model
+
+This gateway uses **OP-TEE (Open Portable Trusted Execution Environment)** for enhanced security:
+
+- **Private keys** are generated and stored in the secure enclave
+- **Keys never touch the filesystem** or regular memory
+- **Transaction signing** happens inside the secure enclave
+- Only the mnemonic seed needs to be backed up securely
+- Address derivation follows BIP32/BIP44 standards
+
+The secure enclave provides hardware-level isolation, protecting keys even if the main system is compromised.
 
 ## Configuration
 
@@ -127,10 +149,10 @@ The spvnode runs with these flags:
 ## Technical Details
 
 - **Language**: C library with Go services and shell script wrappers
-- **Dependencies**: libevent, libunistring, awk, jq
+- **Dependencies**: libevent, libunistring, awk, jq, OP-TEE
 - **Network**: Connects to Dogecoin P2P network on port 22556
 - **Storage**: SQLite databases for headers and wallet data
-- **Security**: Local key generation using libdogecoin's cryptographic functions
+- **Security**: OP-TEE secure enclave for key management and transaction signing
 
 ## Advantages of SPV
 
