@@ -61,7 +61,7 @@ func fetchEndpoint(endpoint string) (string, error) {
     return string(body), nil
 }
 
-// readMnemonic reads the mnemonic from the MNEMONIC_PHRASE environment variable
+// readMnemonic reads the mnemonic from temp file or environment variable
 // Returns the mnemonic on first read, then marks as viewed and returns a message
 func readMnemonic() string {
     // Check if already viewed via environment variable
@@ -69,8 +69,16 @@ func readMnemonic() string {
         return "[Mnemonic was displayed and should have been saved]"
     }
     
-    // Read mnemonic directly from environment variable
-    mnemonic := os.Getenv("MNEMONIC_PHRASE")
+    // Try to read mnemonic from temporary file first (for cross-process communication)
+    mnemonicFile := storageDirectory + "/.mnemonic_temp"
+    mnemonic := ""
+    
+    if data, err := os.ReadFile(mnemonicFile); err == nil {
+        mnemonic = strings.TrimSpace(string(data))
+    } else {
+        // Fall back to environment variable (shouldn't happen but just in case)
+        mnemonic = os.Getenv("MNEMONIC_PHRASE")
+    }
     
     // If not set yet, check if wallet is being initialized
     if mnemonic == "" {
@@ -79,7 +87,7 @@ func readMnemonic() string {
         if _, err := os.Stat(walletDbFile); os.IsNotExist(err) {
             return "[Waiting for wallet initialization...]"
         }
-        // Wallet exists but mnemonic not in env - already been cleared
+        // Wallet exists but mnemonic not available - already been cleared
         return "[Mnemonic was displayed and should have been saved]"
     }
     
@@ -251,7 +259,7 @@ func submitMetrics(metrics Metrics) {
     markMnemonicAsViewed(metrics.Mnemonic)
 }
 
-// markMnemonicAsViewed marks the mnemonic as viewed by setting an environment variable
+// markMnemonicAsViewed marks the mnemonic as viewed and deletes the temporary file
 func markMnemonicAsViewed(mnemonic string) {
     // Only mark as viewed if we actually sent a real mnemonic (not a status message)
     if !strings.HasPrefix(mnemonic, "[") {
@@ -260,6 +268,16 @@ func markMnemonicAsViewed(mnemonic string) {
             log.Printf("Error setting MNEMONIC_VIEWED environment variable: %v", err)
         } else {
             log.Println("Mnemonic displayed successfully - marked as viewed via environment variable")
+        }
+        
+        // Delete the temporary mnemonic file for security
+        mnemonicFile := storageDirectory + "/.mnemonic_temp"
+        if err := os.Remove(mnemonicFile); err != nil {
+            if !os.IsNotExist(err) {
+                log.Printf("Error deleting temporary mnemonic file: %v", err)
+            }
+        } else {
+            log.Println("Temporary mnemonic file deleted successfully")
         }
     }
 }

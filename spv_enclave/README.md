@@ -18,20 +18,21 @@ It will generate a new wallet and start block sync from the last checkpoint.
 
 #### The mnemonic is **HIDDEN by default** for security. To reveal it:
 
-1. **View Metrics** → You'll see: `[🔒 Hidden - Check 'Click to Reveal Mnemonic' in Wallet Security settings to view]`
-2. **Click Reveal Checkbox** → Go to **Settings → Wallet Security → Check "🔓 Click to Reveal Mnemonic"**
-3. **Return to Metrics** → The actual mnemonic words will now be visible
-4. **Save Your Mnemonic** → Copy and store it securely offline
-5. **One-Time Only** → After you view it once, it permanently shows: `[Mnemonic was displayed and should have been saved]`
+1. **Start the Pup** → Click "Enabled" in MENU to start the pup services
+2. **View Metrics** → You'll see: `[🔒 Hidden - Check 'Click to Reveal Mnemonic' in Wallet Security settings to view]`
+3. **Click Reveal Checkbox** → Go to **Settings → Wallet Security → Check "🔓 Click to Reveal Mnemonic"**
+4. **Return to Metrics** → The actual mnemonic words will now be visible
+5. **Save Your Mnemonic** → Copy and store it securely offline
+6. **One-Time Only** → After you view it once, it permanently shows: `[Mnemonic was displayed and should have been saved]`
 
-> **Note:** The reveal checkbox is **separate from** the main "Enabled" toggle that controls the entire pup.
+> **Note:** The reveal checkbox is **separate from** the main "Enabled" toggle that controls the entire pup. You must start the pup first, then use the reveal checkbox to see the mnemonic.
 
 ### Security Features
 
 - 🔒 **Hidden by default** - Mnemonic starts masked, you must check the reveal box
 - 🔓 **Reveal checkbox** - Dedicated checkbox in Wallet Security settings
 - ⚠️ **One-time display** - Can only be viewed during first initialization
-- 💾 **Never persisted** - Not saved to disk or logged for security
+- 💾 **Never persisted** - Stored in temporary file, deleted after first display
 - ✅ **Independent control** - Separate from pup enable/disable
 
-**Important: Go to Settings → Wallet Security → Check the reveal box to see your mnemonic, then save it securely!**
+**Important: After enabling the pup, go to Settings → Wallet Security → Check the reveal box to see your mnemonic, then save it securely!**
