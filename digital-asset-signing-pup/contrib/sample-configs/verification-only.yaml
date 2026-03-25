@@ -1,0 +1,44 @@
+runtime:
+  http_bind: 0.0.0.0:8108
+  metrics_bind: 0.0.0.0:9108
+  offline_verification_mode: true
+
+blockchain:
+  rpc_url: http://127.0.0.1:22555
+  rpc_timeout: 8s
+  mock_mode: true
+
+storage:
+  sqlite_path: /storage/dasp-verification.db
+
+trust:
+  min_provenance_signatures: 2
+
+attestation:
+  require_tpm: true
+  allow_software_fallback: false
+  max_age: 5m
+  required_pcrs:
+    "0": "9db4f4f7f0f8936b5be5"
+    "7": "5d8f6f1a1f0bcad4e1"
+  allowed_device_classes: ["dogebox-pro"]
+
+distribution:
+  cache_dir: /storage/cache
+  backend_urls: []
+  retry_count: 1
+  timeout_seconds: 5
+
+policy:
+  live_anchoring_enabled: false
+  transfers_enabled: false
+  kill_switch: false
+  offline_allow_entitlement: false
+  provider_allowlist: ["provider-anchor-001"]
+  device_class_allowlist: ["dogebox-pro"]
+  allow_stale_for_read_only: false
+  block_unauthenticated_exec: true
+  require_revocation_checking: true
+
+logging:
+  level: info

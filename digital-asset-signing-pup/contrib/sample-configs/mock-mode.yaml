@@ -1,0 +1,49 @@
+runtime:
+  http_bind: 0.0.0.0:8108
+  metrics_bind: 0.0.0.0:9108
+  offline_verification_mode: true
+  kill_switch_initial_state: false
+
+blockchain:
+  rpc_url: http://127.0.0.1:22555
+  rpc_user: dogebox_core_pup_temporary_static_username
+  rpc_pass: dogebox_core_pup_temporary_static_password
+  rpc_timeout: 8s
+  mock_mode: true
+  wallet_label: digital-asset-signing-pup
+  op_return_prefix: DASP1
+
+storage:
+  sqlite_path: /storage/digital-asset-signing-pup.db
+
+trust:
+  trusted_provider_keys: {}
+  trusted_dev_keys: {}
+  min_provenance_signatures: 1
+
+attestation:
+  require_tpm: false
+  allow_software_fallback: true
+  max_age: 10m
+  required_pcrs: {}
+  allowed_device_classes: ["devkit", "dogebox"]
+
+distribution:
+  cache_dir: /storage/cache
+  backend_urls: ["https://example.invalid/content"]
+  retry_count: 2
+  timeout_seconds: 15
+
+policy:
+  live_anchoring_enabled: false
+  transfers_enabled: false
+  kill_switch: false
+  offline_allow_entitlement: true
+  provider_allowlist: []
+  device_class_allowlist: []
+  allow_stale_for_read_only: false
+  block_unauthenticated_exec: true
+  require_revocation_checking: true
+
+logging:
+  level: info

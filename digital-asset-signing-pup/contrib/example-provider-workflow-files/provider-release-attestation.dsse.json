@@ -1,0 +1,10 @@
+{
+  "payloadType": "application/vnd.in-toto+json",
+  "payload": "eyJfdHlwZSI6ImludG90by9TdGF0ZW1lbnQvdjEiLCJwcmVkaWNhdGVUeXBlIjoiaHR0cHM6Ly9leGFtcGxlL2J1aWxkLXByb3ZlbmFuY2UiLCJzdWJqZWN0IjpbXX0=",
+  "signatures": [
+    {
+      "keyid": "dev-a",
+      "sig": "<base64-signature>"
+    }
+  ]
+}

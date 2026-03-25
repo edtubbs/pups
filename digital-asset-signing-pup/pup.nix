@@ -7,17 +7,9 @@ let
     src = ./.;
     vendorHash = null;
 
-    buildPhase = ''
-      export GO111MODULE=off
-      export GOCACHE=$(pwd)/.gocache
-      cd cmd/digital-asset-signing-pup
-      go build -o digital-asset-signing-pup main.go
-    '';
+    subPackages = [ "cmd/digital-asset-signing-pup" ];
+    doCheck = false;
 
-    installPhase = ''
-      mkdir -p $out/bin
-      cp cmd/digital-asset-signing-pup/digital-asset-signing-pup $out/bin/
-    '';
   };
 
   run = pkgs.writeScriptBin "run.sh" ''

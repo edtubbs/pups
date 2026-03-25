@@ -1,0 +1,17 @@
+{
+  "schema_version": "manifest/v1",
+  "artifact_digest": "18a44f423f6db08f2a3f3d8f938f9f4ecf3566f6a3c16c3f7a8f61fd2914fd57",
+  "version": "1.0.0",
+  "content_type": "application/vnd.dogebox.appbundle",
+  "provider_identity": "provider-anchor-001",
+  "target_device_class": "dogebox-pro",
+  "target_user_class": "subscriber",
+  "customization_metadata": {"mode": "per-device-wrap"},
+  "license_id": "lic-0001",
+  "dependencies": [],
+  "supersession_refs": [],
+  "revocation_refs": [],
+  "price_ref": "doge:12.5",
+  "provenance_refs": ["prov-bundle-001"],
+  "signature": "<base64-ed25519-signature-over-manifest-hash>"
+}

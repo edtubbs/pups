@@ -1,0 +1,14 @@
+{
+  "device_id": "device-abc",
+  "provider_nonce": "challenge-123",
+  "tpm_backed": true,
+  "quote": "base64-quote-data",
+  "pcrs": {
+    "0": "9db4f4f7f0f8936b5be5",
+    "7": "5d8f6f1a1f0bcad4e1"
+  },
+  "device_class": "dogebox-pro",
+  "firmware": "fw-1.2.3",
+  "app_measurement": "sha256:abc123",
+  "captured_at": "2026-01-01T00:00:00Z"
+}

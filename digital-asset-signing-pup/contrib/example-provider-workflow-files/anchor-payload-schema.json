@@ -1,0 +1,9 @@
+{
+  "id": "anchor-123",
+  "kind": "manifest",
+  "digest": "hex-sha256",
+  "ref": "manifest/v1/provider-anchor-001/1.0.0",
+  "issuer_id": "provider-anchor-001",
+  "supersedes": "anchor-older",
+  "revokes": "anchor-revoked"
+}
