@@ -14,3 +14,9 @@ Runtime interface:
 - `Predict(featureVector) -> ranked actions`
 
 Roadmap: ONNX Runtime can be added behind a feature flag with the same interface.
+
+## roadmap: ONNX runtime support
+- Add `model_backend: onnx` as an optional backend.
+- Keep ONNX disabled by default and behind explicit config flag.
+- Reuse the same model interface used by fake/XGBoost backends.
+- Enforce feature schema compatibility and fail-safe behavior identical to current backends.

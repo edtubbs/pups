@@ -25,11 +25,17 @@ type Adapter interface {
 }
 
 type Client struct {
-	http *http.Client
+	http           *http.Client
+	BinanceBaseURL string
+	KrakenBaseURL  string
 }
 
 func NewClient() *Client {
-	return &Client{http: &http.Client{Timeout: 8 * time.Second}}
+	return &Client{
+		http:           &http.Client{Timeout: 8 * time.Second},
+		BinanceBaseURL: "https://api.binance.com",
+		KrakenBaseURL:  "https://api.kraken.com",
+	}
 }
 
 type BinanceAdapter struct{ c *Client }
@@ -41,7 +47,7 @@ func NewKraken(c *Client) *KrakenAdapter   { return &KrakenAdapter{c: c} }
 func (a *BinanceAdapter) Name() string { return "binance" }
 func (a *BinanceAdapter) FetchSnapshot(ctx context.Context, symbol string, interval string) (Snapshot, error) {
 	now := time.Now().UTC()
-	tickURL := fmt.Sprintf("https://api.binance.com/api/v3/ticker/bookTicker?symbol=%s", symbol)
+	tickURL := fmt.Sprintf("%s/api/v3/ticker/bookTicker?symbol=%s", a.c.BinanceBaseURL, symbol)
 	var ticker struct {
 		BidPrice string `json:"bidPrice"`
 		AskPrice string `json:"askPrice"`
@@ -53,7 +59,7 @@ func (a *BinanceAdapter) FetchSnapshot(ctx context.Context, symbol string, inter
 	ask, _ := strconv.ParseFloat(ticker.AskPrice, 64)
 	price := (bid + ask) / 2
 
-	klineURL := fmt.Sprintf("https://api.binance.com/api/v3/klines?symbol=%s&interval=%s&limit=200", symbol, interval)
+	klineURL := fmt.Sprintf("%s/api/v3/klines?symbol=%s&interval=%s&limit=200", a.c.BinanceBaseURL, symbol, interval)
 	var klines [][]any
 	if err := a.c.getJSON(ctx, klineURL, &klines); err != nil {
 		return Snapshot{}, err
@@ -89,7 +95,7 @@ func (a *KrakenAdapter) FetchSnapshot(ctx context.Context, symbol string, interv
 		pair = "XDGUSDT"
 	}
 	now := time.Now().UTC()
-	tickerURL := fmt.Sprintf("https://api.kraken.com/0/public/Ticker?pair=%s", pair)
+	tickerURL := fmt.Sprintf("%s/0/public/Ticker?pair=%s", a.c.KrakenBaseURL, pair)
 	var ticker struct {
 		Result map[string]struct {
 			Ask []string `json:"a"`
@@ -111,7 +117,7 @@ func (a *KrakenAdapter) FetchSnapshot(ctx context.Context, symbol string, interv
 	}
 	price := (bid + ask) / 2
 
-	ohlcURL := fmt.Sprintf("https://api.kraken.com/0/public/OHLC?pair=%s&interval=1", pair)
+	ohlcURL := fmt.Sprintf("%s/0/public/OHLC?pair=%s&interval=1", a.c.KrakenBaseURL, pair)
 	var ohlc struct {
 		Result map[string][][]any `json:"result"`
 	}

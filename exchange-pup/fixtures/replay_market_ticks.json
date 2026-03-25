@@ -1,0 +1,4 @@
+[
+  {"exchange":"binance","symbol":"DOGEUSDT","price":0.20,"bid":0.199,"ask":0.201,"volume":123456,"timestamp":"2026-01-01T00:00:00Z"},
+  {"exchange":"kraken","symbol":"DOGEUSDT","price":0.201,"bid":0.200,"ask":0.202,"volume":120000,"timestamp":"2026-01-01T00:00:10Z"}
+]
