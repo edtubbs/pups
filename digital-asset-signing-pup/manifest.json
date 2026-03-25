@@ -1,0 +1,104 @@
+{
+  "manifestVersion": 1,
+  "meta": {
+    "name": "Digital Asset Signing",
+    "version": "0.1.0",
+    "logoPath": "logo.png",
+    "shortDescription": "Verification-first trust and signed content distribution",
+    "longDescription": "Registers providers/devices, verifies attestation and signed artifacts, and anchors compact trust receipts to Dogecoin RPC with policy-gated writes.",
+    "upstreamVersions": null
+  },
+  "config": {
+    "sections": [
+      {
+        "name": "runtime",
+        "label": "Runtime",
+        "fields": [
+          { "name": "CONFIG_PATH", "label": "Config Path", "type": "text", "default": "/storage/config.json" },
+          { "name": "HTTP_BIND", "label": "HTTP Bind Address", "type": "text", "default": "0.0.0.0:8108" },
+          { "name": "METRICS_BIND", "label": "Metrics Bind Address", "type": "text", "default": "0.0.0.0:9108" },
+          { "name": "OFFLINE_VERIFICATION", "label": "Offline Verification Mode", "type": "toggle", "default": true },
+          { "name": "LIVE_ANCHORING", "label": "Enable Live Anchoring", "type": "toggle", "default": false },
+          { "name": "ENABLE_TRANSFERS", "label": "Enable License Transfers", "type": "toggle", "default": false }
+        ]
+      },
+      {
+        "name": "dogecoin_rpc",
+        "label": "Dogecoin RPC",
+        "fields": [
+          { "name": "DOGECOIN_RPC_URL", "label": "RPC URL", "type": "text", "default": "http://127.0.0.1:22555" },
+          { "name": "DOGECOIN_RPC_USER", "label": "RPC Username", "type": "text" },
+          { "name": "DOGECOIN_RPC_PASS", "label": "RPC Password", "type": "password" }
+        ]
+      }
+    ]
+  },
+  "container": {
+    "build": {
+      "nixFile": "pup.nix",
+      "nixFileSha256": ""
+    },
+    "services": [
+      {
+        "name": "digital-asset-signing-pup",
+        "command": {
+          "exec": "/bin/run.sh",
+          "cwd": "",
+          "env": null
+        }
+      }
+    ],
+    "exposes": [
+      {
+        "name": "http-api",
+        "type": "http",
+        "port": 8108,
+        "interfaces": ["digital-asset-signing-api"],
+        "listenOnHost": false,
+        "webUI": false
+      },
+      {
+        "name": "metrics",
+        "type": "http",
+        "port": 9108,
+        "interfaces": null,
+        "listenOnHost": false,
+        "webUI": false
+      }
+    ],
+    "requiresInternet": true
+  },
+  "interfaces": [
+    {
+      "name": "digital-asset-signing-api",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "API",
+          "description": "Allows local API access for trust and distribution operations",
+          "severity": 2,
+          "routes": ["/*"],
+          "port": 8108
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "interfaceName": "core-rpc",
+      "interfaceVersion": "0.0.1",
+      "permissionGroups": ["RPC"],
+      "source": {
+        "sourceLocation": "",
+        "pupName": "",
+        "pupVersion": "",
+        "pupLogoBase64": ""
+      }
+    }
+  ],
+  "metrics": [
+    { "name": "trust_decisions_total", "label": "Trust decisions", "type": "int", "history": 30 },
+    { "name": "policy_denies_total", "label": "Policy denies", "type": "int", "history": 30 },
+    { "name": "anchors_verified_total", "label": "Anchors verified", "type": "int", "history": 30 }
+  ]
+}
