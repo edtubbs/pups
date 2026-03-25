@@ -1,0 +1,13 @@
+[Unit]
+Description=Dogebox Exchange Pup
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/bin/exchange-pup -config /storage/exchange-pup.yaml
+Restart=always
+RestartSec=5
+Environment=MODE=recommend_only
+
+[Install]
+WantedBy=multi-user.target

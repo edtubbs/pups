@@ -1,0 +1,52 @@
+mode: recommend_only
+enable_live_chain_execution: false
+enable_live_exchange_execution: false
+recommend_only_master_switch: true
+paper_trade_only_master_switch: false
+dry_run: true
+kill_switch_initial_state: false
+require_human_approval: true
+require_human_approval_over_confidence: 0.85
+http_bind: 0.0.0.0:8099
+metrics_bind: 0.0.0.0:9109
+sqlite_path: /storage/exchange-pup.db
+model_backend: fake
+model_path: ""
+model_metadata_path: /storage/model-metadata.json
+feature_schema_version: v1
+node_rpc:
+  url: http://127.0.0.1:22555
+  user: ""
+  password: ""
+  timeout: 5s
+market:
+  symbols: [DOGEUSDT]
+  exchanges: [binance, kraken]
+  candle_intervals: [1m, 5m, 15m]
+  rest_poll_interval: 10s
+  enable_websocket_binance: false
+  enable_websocket_kraken: false
+  max_data_staleness: 60s
+  require_min_orderbook_depth: 1000
+policy:
+  whitelisted_buckets: [exchange_deposit, treasury, hot_wallet, cold_storage]
+  whitelisted_addresses: []
+  max_single_action_amount_doge: 500
+  max_daily_amount_doge: 2000
+  cooldown: 2m
+  min_confidence: 0.55
+  min_expected_edge: 0.0
+  max_slippage_bps: 50
+  min_liquidity: 1000
+  allowed_destination_by_bucket:
+    exchange_deposit: exchange_deposit
+    treasury: treasury
+paper_trading:
+  assumed_fee_bps: 10
+  assumed_slippage_bps: 15
+  starting_cash_doge: 10000
+secrets:
+  binance_api_key: ""
+  binance_api_secret: ""
+  kraken_api_key: ""
+  kraken_api_secret: ""
