@@ -142,10 +142,40 @@
     }
   ],
   "metrics": [
-    { "name": "mode", "label": "Mode", "type": "string", "history": 1 },
-    { "name": "model_loaded", "label": "Model Loaded", "type": "string", "history": 1 },
-    { "name": "last_signal_action", "label": "Last Signal", "type": "string", "history": 1 },
-    { "name": "policy_rejects", "label": "Policy Rejects", "type": "int", "history": 30 },
-    { "name": "paper_pnl", "label": "Paper PnL", "type": "float", "history": 30 }
+    {
+      "name": "mode",
+      "label": "Mode",
+      "type": "string",
+      "history": 1,
+      "description": "Current exchange-pup operating mode."
+    },
+    {
+      "name": "model_loaded",
+      "label": "Model Loaded",
+      "type": "string",
+      "history": 1,
+      "description": "Model load status for inference backend."
+    },
+    {
+      "name": "last_signal_action",
+      "label": "Last Signal",
+      "type": "string",
+      "history": 1,
+      "description": "Latest recommended action label."
+    },
+    {
+      "name": "policy_rejects",
+      "label": "Policy Rejects",
+      "type": "float",
+      "history": 200,
+      "description": "Count of policy rejections over time (sparkline)."
+    },
+    {
+      "name": "paper_pnl",
+      "label": "Paper PnL",
+      "type": "float",
+      "history": 200,
+      "description": "Simulated paper trading PnL over time (sparkline)."
+    }
   ]
 }
