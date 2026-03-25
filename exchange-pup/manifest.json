@@ -1,0 +1,151 @@
+{
+  "manifestVersion": 1,
+  "meta": {
+    "name": "Exchange Pup",
+    "version": "0.0.1",
+    "logoPath": "logo.png",
+    "shortDescription": "AI-assisted DOGE market timing and routing",
+    "longDescription": "Exchange Pup ingests market and local node data, computes features, runs local inference, and outputs policy-gated DOGE routing recommendations.",
+    "upstreamVersions": {
+      "XGBoost": "runtime-linked",
+      "TA-Lib": "runtime-linked",
+      "SQLite": "runtime-linked"
+    }
+  },
+  "config": {
+    "showOnInstall": true,
+    "sections": [
+      {
+        "name": "mode",
+        "label": "Operation Mode",
+        "fields": [
+          {
+            "label": "Mode",
+            "name": "MODE",
+            "type": "select",
+            "required": true,
+            "default": "recommend_only",
+            "options": [
+              { "label": "Recommendation only", "value": "recommend_only" },
+              { "label": "Paper trade", "value": "paper_trade" },
+              { "label": "Live chain execute", "value": "live_chain_execute" },
+              { "label": "Live exchange execute", "value": "live_exchange_execute" }
+            ]
+          },
+          {
+            "label": "Enable outbound chain execution",
+            "name": "ENABLE_LIVE_CHAIN_EXECUTION",
+            "type": "toggle",
+            "default": false
+          },
+          {
+            "label": "Enable outbound exchange execution",
+            "name": "ENABLE_LIVE_EXCHANGE_EXECUTION",
+            "type": "toggle",
+            "default": false
+          }
+        ]
+      },
+      {
+        "name": "core_rpc",
+        "label": "Dogecoin Core RPC",
+        "fields": [
+          { "label": "RPC URL", "name": "CORE_RPC_URL", "type": "text", "required": true, "default": "http://127.0.0.1:22555" },
+          { "label": "RPC Username", "name": "CORE_RPC_USER", "type": "text", "required": false },
+          { "label": "RPC Password", "name": "CORE_RPC_PASSWORD", "type": "password", "required": false }
+        ]
+      },
+      {
+        "name": "runtime",
+        "label": "Runtime",
+        "fields": [
+          { "label": "HTTP Bind", "name": "HTTP_BIND", "type": "text", "default": "0.0.0.0:8099" },
+          { "label": "Metrics Bind", "name": "METRICS_BIND", "type": "text", "default": "0.0.0.0:9109" },
+          { "label": "SQLite Path", "name": "SQLITE_PATH", "type": "text", "default": "/storage/exchange-pup.db" },
+          { "label": "Config Path", "name": "CONFIG_PATH", "type": "text", "default": "/storage/exchange-pup.yaml" }
+        ]
+      }
+    ]
+  },
+  "container": {
+    "build": {
+      "nixFile": "pup.nix",
+      "nixFileSha256": ""
+    },
+    "services": [
+      {
+        "name": "exchange-pup",
+        "command": {
+          "exec": "/bin/exchange-pup",
+          "cwd": "",
+          "env": null
+        }
+      }
+    ],
+    "exposes": [
+      {
+        "name": "http",
+        "type": "http",
+        "port": 8099,
+        "interfaces": ["exchange-pup-http"],
+        "listenOnHost": false
+      },
+      {
+        "name": "metrics",
+        "type": "http",
+        "port": 9109,
+        "interfaces": ["exchange-pup-metrics"],
+        "listenOnHost": false
+      }
+    ],
+    "requiresInternet": true
+  },
+  "interfaces": [
+    {
+      "name": "exchange-pup-http",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "HTTP",
+          "description": "Allows local API access to exchange pup",
+          "severity": 2,
+          "routes": ["/*"],
+          "port": 0
+        }
+      ]
+    },
+    {
+      "name": "exchange-pup-metrics",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "Metrics",
+          "description": "Allows access to exchange pup metrics",
+          "severity": 1,
+          "routes": ["/*"],
+          "port": 0
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "interfaceName": "core-rpc",
+      "interfaceVersion": "0.0.1",
+      "permissionGroups": ["RPC"],
+      "source": {
+        "sourceLocation": "",
+        "pupName": "",
+        "pupVersion": "",
+        "pupLogoBase64": ""
+      }
+    }
+  ],
+  "metrics": [
+    { "name": "mode", "label": "Mode", "type": "string", "history": 1 },
+    { "name": "model_loaded", "label": "Model Loaded", "type": "string", "history": 1 },
+    { "name": "last_signal_action", "label": "Last Signal", "type": "string", "history": 1 },
+    { "name": "policy_rejects", "label": "Policy Rejects", "type": "int", "history": 30 },
+    { "name": "paper_pnl", "label": "Paper PnL", "type": "float", "history": 30 }
+  ]
+}
