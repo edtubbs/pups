@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "Libdogecoin SPV Enclave",
-    "version": "0.0.2",
+    "version": "0.0.7",
     "logoPath": "logo.png",
     "shortDescription": "Run a libdogecoin SPV node on your dogebox",
     "longDescription": "Libdogecoin SPV Enclave runs a minimal node on your dogebox with the key management enclave. Insert a Yubikey before operation.",
@@ -11,12 +11,27 @@
     }
   },
   "config": {
-    "sections": null
+    "sections": [
+      {
+        "name": "security",
+        "label": "Wallet Security",
+        "fields": [
+          {
+            "name": "REVEAL_MNEMONIC",
+            "label": "🔓 Click to Reveal Mnemonic",
+            "type": "checkbox",
+            "required": false,
+            "default": "false",
+            "help": "Check this box to reveal your wallet mnemonic in the Metrics display. The mnemonic is hidden until you check this box. Once revealed and saved, it will be permanently hidden."
+          }
+        ]
+      }
+    ]
   },
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "71aade30afe5570e6e89fa85b0e1e33bbf9c8fc8f25d8b04b9538dfdf8188763"
+      "nixFileSha256": "8ec96292c9e862f2844709ad81aa7eb4b9c88c47794d24f46cdfbd00f4e679df"
     },
     "services": [
       {
@@ -79,6 +94,13 @@
   ],
   "dependencies": null,
   "metrics": [
+    {
+      "name": "mnemonic",
+      "label": "⚠️ Wallet Mnemonic (ONE-TIME DISPLAY)",
+      "type": "string",
+      "history": 1,
+      "sensitive": true
+    },
     {
       "name": "chaintip",
       "label": "Chain Tip",

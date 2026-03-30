@@ -23,11 +23,34 @@ let
     fi
 
     # Generate a mnemonic with the libdogecoin key management enclave
-    if [ ! -f "${storageDirectory}/present" ]; then
-        # YubiKey (TOTP) path
-        { sleep 1; printf '\n'; sleep 1; printf 'y\n'; } | \
+    if [ ! -f "${storageDirectory}/wallet.db" ]; then
+        # Create output.log and display one-time mnemonic warning
+        echo "============================================" > "${storageDirectory}/output.log"
+        echo "⚠️  ONE-TIME MNEMONIC DISPLAY ⚠️" >> "${storageDirectory}/output.log"
+        echo "============================================" >> "${storageDirectory}/output.log"
+        echo "IMPORTANT: Save this mnemonic phrase now!" >> "${storageDirectory}/output.log"
+        echo "This is your ONLY opportunity to see it." >> "${storageDirectory}/output.log"
+        echo "It will NOT be saved or shown again." >> "${storageDirectory}/output.log"
+        echo "============================================" >> "${storageDirectory}/output.log"
+        echo "" >> "${storageDirectory}/output.log"
+        
+        # YubiKey (TOTP) path - capture mnemonic and write to temporary file for monitor
+        MNEMONIC_PHRASE=$({ sleep 1; printf '\n'; sleep 1; printf 'y\n'; } | \
           SHELL=/run/current-system/sw/bin/bash \
-          ${util-linux}/bin/script -q -e -c "${optee_libdogecoin}/bin/optee_libdogecoin -c generate_mnemonic -z" /dev/null 2>&1 | tee "${storageDirectory}/present"
+          ${util-linux}/bin/script -q -e -c "${optee_libdogecoin}/bin/optee_libdogecoin -c generate_mnemonic -z" /dev/null 2>&1)
+        
+        # Write mnemonic to temporary file for monitor to read
+        # This file will be deleted by monitor after first successful display
+        echo "$MNEMONIC_PHRASE" > "${storageDirectory}/.mnemonic_temp"
+        chmod 600 "${storageDirectory}/.mnemonic_temp"
+        
+        echo "" >> "${storageDirectory}/output.log"
+        echo "🔐 Mnemonic generated successfully!" >> "${storageDirectory}/output.log"
+        echo "📊 View your mnemonic in the Metrics dashboard" >> "${storageDirectory}/output.log"
+        echo "⚠️  This is a ONE-TIME display - save it now!" >> "${storageDirectory}/output.log"
+        echo "============================================" >> "${storageDirectory}/output.log"
+        echo "Starting wallet initialization..." >> "${storageDirectory}/output.log"
+        echo "============================================" >> "${storageDirectory}/output.log"
 
         # Give the TEE a moment
         sleep 1

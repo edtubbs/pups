@@ -12,7 +12,10 @@ import (
     "time"
 )
 
+var storageDirectory = "/storage"
+
 type Metrics struct {
+    Mnemonic         string `json:"mnemonic"`
     Chaintip         string `json:"chaintip"`
     Balance          string `json:"balance"`
     Addresses        string `json:"addresses"`
@@ -58,8 +61,55 @@ func fetchEndpoint(endpoint string) (string, error) {
     return string(body), nil
 }
 
+// readMnemonic reads the mnemonic from temp file or environment variable
+// Returns the mnemonic on first read, then marks as viewed and returns a message
+func readMnemonic() string {
+    // Check if already viewed via environment variable
+    if os.Getenv("MNEMONIC_VIEWED") == "true" {
+        return "[Mnemonic was displayed and should have been saved]"
+    }
+    
+    // Try to read mnemonic from temporary file first (for cross-process communication)
+    mnemonicFile := storageDirectory + "/.mnemonic_temp"
+    mnemonic := ""
+    
+    if data, err := os.ReadFile(mnemonicFile); err == nil {
+        mnemonic = strings.TrimSpace(string(data))
+    } else {
+        // Fall back to environment variable (shouldn't happen but just in case)
+        mnemonic = os.Getenv("MNEMONIC_PHRASE")
+    }
+    
+    // If not set yet, check if wallet is being initialized
+    if mnemonic == "" {
+        // Check if wallet.db exists to determine state
+        walletDbFile := storageDirectory + "/wallet.db"
+        if _, err := os.Stat(walletDbFile); os.IsNotExist(err) {
+            return "[Waiting for wallet initialization...]"
+        }
+        // Wallet exists but mnemonic not available - already been cleared
+        return "[Mnemonic was displayed and should have been saved]"
+    }
+    
+    // Check if user has revealed the mnemonic via checkbox
+    revealMnemonic := os.Getenv("REVEAL_MNEMONIC")
+    if revealMnemonic != "true" {
+        // Return masked version with reveal instructions
+        words := strings.Fields(mnemonic)
+        if len(words) > 0 {
+            return "[🔒 Hidden - Check 'Click to Reveal Mnemonic' in Wallet Security settings to view]"
+        }
+    }
+    
+    // Return the mnemonic (will be marked as viewed after successful submission)
+    return mnemonic
+}
+
 func collectMetrics() (Metrics, error) {
     var metrics Metrics
+
+    // Read mnemonic for one-time display
+    metrics.Mnemonic = readMnemonic()
 
     // Fetch chain tip
     chaintipStr, err := fetchEndpoint("/getChaintip")
@@ -164,6 +214,7 @@ func submitMetrics(metrics Metrics) {
     }
 
     jsonData := map[string]interface{}{
+        "mnemonic":          map[string]interface{}{"value": metrics.Mnemonic},
         "chaintip":          map[string]interface{}{"value": metrics.Chaintip},
         "balance":           map[string]interface{}{"value": metrics.Balance},
         "addresses":         map[string]interface{}{"value": metrics.Addresses},
@@ -201,6 +252,33 @@ func submitMetrics(metrics Metrics) {
         body, _ := io.ReadAll(resp.Body)
         log.Printf("Unexpected status code when submitting metrics: %d", resp.StatusCode)
         log.Printf("Response body: %s", string(body))
+        return
+    }
+
+    // After successful submission, mark mnemonic as viewed if it was just displayed
+    markMnemonicAsViewed(metrics.Mnemonic)
+}
+
+// markMnemonicAsViewed marks the mnemonic as viewed and deletes the temporary file
+func markMnemonicAsViewed(mnemonic string) {
+    // Only mark as viewed if we actually sent a real mnemonic (not a status message)
+    if !strings.HasPrefix(mnemonic, "[") {
+        // Set environment variable to mark as viewed
+        if err := os.Setenv("MNEMONIC_VIEWED", "true"); err != nil {
+            log.Printf("Error setting MNEMONIC_VIEWED environment variable: %v", err)
+        } else {
+            log.Println("Mnemonic displayed successfully - marked as viewed via environment variable")
+        }
+        
+        // Delete the temporary mnemonic file for security
+        mnemonicFile := storageDirectory + "/.mnemonic_temp"
+        if err := os.Remove(mnemonicFile); err != nil {
+            if !os.IsNotExist(err) {
+                log.Printf("Error deleting temporary mnemonic file: %v", err)
+            }
+        } else {
+            log.Println("Temporary mnemonic file deleted successfully")
+        }
     }
 }
 
