@@ -2,13 +2,18 @@
 
 This pup runs a [D2](https://github.com/dogecoinfoundation/d2) testnet node on your dogebox.
 
-## Status: Scaffolding
+## Packaging
 
-The D2 node binary does not yet have a public release artifact, so this pup is
-currently **scaffolding**. The `d2d` service is a placeholder that waits until
-a real D2 package is plugged into `pup.nix` (see the `TODO` there). The
-manifest, service layout, interfaces, and metrics are all in place so that
-enabling the real node is a small follow-up change.
+The D2 node is built from the `d2` package in
+[dogebox-nur-packages](https://github.com/edtubbs/dogebox-nur-packages)
+(`pkgs/d2`), pinned by commit in `pup.nix`. The package builds the
+`d2-node` Go daemon linked against the `libd2` Rust library.
+
+**Note:** the D2 source repository is private, so the package fetches it
+over SSH. The machine building this pup needs read access to
+`dogecoinfoundation/d2` (see `pkgs/d2/source.nix` in the NUR repo for
+deploy-key / sandbox details). It cannot be built by public CI or the
+binary cache until the repo is public.
 
 ## Testnet model
 
@@ -24,7 +29,7 @@ enabling the real node is a small follow-up change.
 
 | Service   | Description                                                        |
 |-----------|--------------------------------------------------------------------|
-| `d2d`     | The D2 node (placeholder until a release artifact is available)    |
+| `d2d`     | The D2 node (from dogebox-nur-packages `pkgs/d2`)                  |
 | `monitor` | Reports node status/metrics to the Dogebox GUI                     |
 | `logger`  | Tails the node's debug log                                         |
 
@@ -36,10 +41,9 @@ enabling the real node is a small follow-up change.
 | `d2-rpc`     | 42070 | RPC access for dependent pups                |
 | `d2-events`  | 42071 | Block/transaction event notifications        |
 
-## Remaining work (once a D2 artifact is published)
+## Remaining work
 
-- [ ] Replace the placeholder derivation in `pup.nix` with the real D2 package
-- [ ] Launch the node in `run.sh` with the ports/datadir documented in `pup.nix`
+- [ ] Pass explicit P2P/RPC/event port flags to `d2-node` once its CLI is documented
 - [ ] Implement real RPC polling in `monitor/monitor.go`
 - [ ] Add archival vs light-weight node profiles (config section + flags)
 - [ ] Add the fortnightly reset/bootstrap-from-D1-chainstate logic

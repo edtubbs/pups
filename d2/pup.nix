@@ -3,21 +3,22 @@
 let
   storageDirectory = "/storage";
 
-  # TODO: Replace this placeholder with the real D2 node package once a
-  # public release artifact (or dogebox-nur-packages derivation) is
-  # available. Expected shape (mirrors the core pup):
+  # The D2 packages live in the dogebox-nur-packages repo (pkgs/d2) as a
+  # multi-file package set (default.nix, source.nix, libd2.nix, Cargo.lock),
+  # so we fetch the whole repo pinned to a commit rather than a single file.
   #
-  #   d2_bin = pkgs.callPackage (pkgs.fetchurl {
-  #     url = "https://raw.githubusercontent.com/Dogebox-WG/dogebox-nur-packages/<rev>/pkgs/d2/default.nix";
-  #     sha256 = "<sha256>";
-  #   }) {};
-  #
-  # The run.sh script below should then launch the D2 node with:
-  #   - P2P port 42069 (d2-network expose)
-  #   - RPC bound to $DBX_PUP_IP on port 42070 (d2-rpc expose)
-  #   - event notifications on port 42071 (d2-events expose)
-  #   - datadir ${storageDirectory}
-  #   - RPC credentials from /storage/rpcuser.txt and /storage/rpcpassword.txt
+  # NOTE: the D2 source itself (dogecoinfoundation/d2) is private; the
+  # package fetches it over SSH (see pkgs/d2/source.nix in the NUR repo for
+  # the deploy-key / sandbox requirements). It cannot be built by public CI.
+  dogebox-nur-packages = pkgs.fetchFromGitHub {
+    owner = "edtubbs";
+    repo = "dogebox-nur-packages";
+    rev = "254921d526b359dc5650ffdeb2d0fe6f9415173e";
+    hash = "sha256-Y2zz/HPUtT7w9ExampHdmyNrrLg+ZMayhHSrfD7KyvM=";
+  };
+
+  d2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {};
+
   d2d = pkgs.writeScriptBin "run.sh" ''
     #!${pkgs.stdenv.shell}
     if [ ! -f /storage/rpcuser.txt ] || [ ! -f /storage/rpcpassword.txt ]; then
@@ -31,12 +32,25 @@ let
         RPCPASS=$(cat /storage/rpcpassword.txt)
     fi
 
-    echo "D2 node binary is not yet available. This pup is scaffolding for the D2 testnet." >> ${storageDirectory}/debug.log
-    echo "Waiting for a D2 release artifact to be published..." >> ${storageDirectory}/debug.log
-
-    while true; do
-      sleep 300
+    # Prefer a conventionally named binary, otherwise fall back to the
+    # first binary the d2 package installs.
+    D2_BIN=""
+    for candidate in d2-node d2 d2d; do
+      if [ -x "${d2_bin}/bin/$candidate" ]; then
+        D2_BIN="${d2_bin}/bin/$candidate"
+        break
+      fi
     done
+    if [ -z "$D2_BIN" ]; then
+      D2_BIN=$(ls ${d2_bin}/bin/* | head -n 1)
+    fi
+
+    echo "Starting D2 node: $D2_BIN" >> ${storageDirectory}/debug.log
+
+    # TODO: pass explicit P2P (42069), RPC (42070) and event (42071) port
+    # flags once the d2-node CLI is documented.
+    cd ${storageDirectory}
+    HOME=${storageDirectory} exec "$D2_BIN" >> ${storageDirectory}/debug.log 2>&1
   '';
 
   monitor = pkgs.buildGoModule {

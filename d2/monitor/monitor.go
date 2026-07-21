@@ -11,11 +11,12 @@ import (
 	"time"
 )
 
-// This monitor is scaffolding for the D2 testnet pup. Once the D2 node
-// binary is available, it should query the node's RPC interface (see the
-// core pup's monitor for the pattern) and report real chain metrics.
-// Until then it reports a static "waiting" status so the Dogebox GUI shows
-// the pup state clearly.
+// This monitor reports D2 pup status to the Dogebox GUI. The d2-node
+// binary (from dogebox-nur-packages pkgs/d2) is now launched by the pup,
+// but its RPC interface is not yet documented, so this monitor reports a
+// static status. Once the D2 RPC is documented it should query the node
+// (see the core pup's monitor for the pattern) and report real chain
+// metrics.
 
 type NodeInfo struct {
 	Status       string
@@ -30,7 +31,7 @@ type NodeInfo struct {
 // credentials in /storage/rpcuser.txt and /storage/rpcpassword.txt).
 func getNodeInfo() NodeInfo {
 	return NodeInfo{
-		Status:       "Waiting for D2 release",
+		Status:       "Running (RPC polling not yet implemented)",
 		Chain:        "d2-testnet",
 		Blocks:       0,
 		Headers:      0,

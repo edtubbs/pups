@@ -12,9 +12,10 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 - Detects **double spends** — conflicting spends of the same outpoint — and
   counts them as a testnet metric.
 - Relays each transaction's UTXO activity to the D2 testnet. **The D2
-  submission is currently a stub** (see `relayToD2` in `relay/relay.go`)
-  awaiting a public D2 release artifact; the D1 monitoring side is fully
-  functional.
+  submission is currently a stub** (see `relayToD2` in `relay/relay.go`) —
+  the [D2 pup](../d2) now runs a real node (built from
+  dogebox-nur-packages `pkgs/d2`), but its RPC interface is not yet
+  documented; the D1 monitoring side is fully functional.
 
 ## Metrics (shown in the Dogebox GUI)
 
@@ -31,7 +32,7 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 
 - `core-rpc` (v0.0.1) from the [Dogecoin Core pup](../core)
 
-## Remaining work (once a D2 artifact is published)
+## Remaining work (once the D2 RPC interface is documented)
 
 - [ ] Add a `d2-rpc` dependency to `manifest.json`
 - [ ] Implement `relayToD2` against the D2 node's RPC interface
