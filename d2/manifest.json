@@ -1,0 +1,154 @@
+{
+  "manifestVersion": 1,
+  "meta": {
+    "name": "D2",
+    "version": "0.0.1",
+    "logoPath": "logo.png",
+    "shortDescription": "Run a D2 testnet node on your dogebox",
+    "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set. NOTE: this pup is currently scaffolding awaiting a public D2 release artifact.",
+    "upstreamVersions": {
+      "D2": "unreleased"
+    }
+  },
+  "config": {
+    "sections": null
+  },
+  "container": {
+    "build": {
+      "nixFile": "pup.nix",
+      "nixFileSha256": "d15ce82816fb45e6cf566ca5e9c3d8c7ce66235aa3b4d3588c5950bed761cbe6"
+    },
+    "services": [
+      {
+        "name": "d2d",
+        "command": {
+          "exec": "/bin/run.sh",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "monitor",
+        "command": {
+          "exec": "/bin/monitor",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "logger",
+        "command": {
+          "exec": "/bin/logger",
+          "cwd": "",
+          "env": null
+        }
+      }
+    ],
+    "exposes": [
+      {
+        "name": "public-port",
+        "type": "tcp",
+        "port": 42069,
+        "interfaces": [
+          "d2-network"
+        ],
+        "listenOnHost": true
+      },
+      {
+        "name": "rpc",
+        "type": "http",
+        "port": 42070,
+        "interfaces": [
+          "d2-rpc"
+        ],
+        "listenOnHost": false
+      },
+      {
+        "name": "events",
+        "type": "tcp",
+        "port": 42071,
+        "interfaces": [
+          "d2-events"
+        ],
+        "listenOnHost": false
+      }
+    ],
+    "requiresInternet": true
+  },
+  "interfaces": [
+    {
+      "name": "d2-rpc",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "RPC",
+          "description": "Allows RPC access to the D2 node",
+          "severity": 2,
+          "routes": [
+            "/*"
+          ],
+          "port": 0
+        }
+      ]
+    },
+    {
+      "name": "d2-events",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "Events",
+          "description": "Allows access to D2 node block/transaction event notifications",
+          "severity": 1,
+          "routes": null,
+          "port": 42071
+        }
+      ]
+    },
+    {
+      "name": "d2-network",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "Network",
+          "description": "Allows access to the D2 node's network port",
+          "severity": 2,
+          "routes": null,
+          "port": 42069
+        }
+      ]
+    }
+  ],
+  "dependencies": null,
+  "metrics": [
+    {
+      "name": "status",
+      "label": "Status",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "chain",
+      "label": "Chain",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "blocks",
+      "label": "Block Height",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "headers",
+      "label": "Headers",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "testnet_epoch",
+      "label": "Testnet Epoch",
+      "type": "string",
+      "history": 1
+    }
+  ]
+}
