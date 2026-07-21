@@ -174,9 +174,12 @@ func (r *Relay) processBlock(block Block) {
 			}
 
 			outpoint := fmt.Sprintf("%s:%d", vin.TxID, vin.Vout)
-			if spender, seen := r.spentOutpoints[outpoint]; seen && spender != tx.TxID {
-				r.doubleSpends++
-				log.Printf("DOUBLE SPEND detected: outpoint %s spent by both %s and %s", outpoint, spender, tx.TxID)
+			if spender, seen := r.spentOutpoints[outpoint]; seen {
+				if spender != tx.TxID {
+					r.doubleSpends++
+					log.Printf("DOUBLE SPEND detected: outpoint %s spent by both %s and %s", outpoint, spender, tx.TxID)
+				}
+				// Duplicate input within the same transaction: skip.
 			} else {
 				r.spentOutpoints[outpoint] = tx.TxID
 				r.utxosSpent++

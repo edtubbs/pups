@@ -12,8 +12,10 @@ enabling the real node is a small follow-up change.
 
 ## Testnet model
 
-- The D2 testnet is **reset every two weeks** from a Dogecoin (D1) chainstate
-  snapshot, giving the network a realistic UTXO set for stress testing.
+- The D2 testnet is **planned to reset every two weeks** from a Dogecoin (D1)
+  chainstate snapshot, giving the network a realistic UTXO set for stress
+  testing. The reset/bootstrap logic is not yet implemented (see remaining
+  work below).
 - The companion [`d2-relay`](../d2-relay) pup monitors UTXOs sent/received in
   D1 blocks and relays them to the D2 testnet, and reports testnet metrics
   (including double-spend detection) to the Dogebox GUI.

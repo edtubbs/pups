@@ -11,9 +11,9 @@ import (
 )
 
 var storageDirectory string
-var debugLogFilePath = filepath.Join(storageDirectory, "debug.log")
 
 func main() {
+	debugLogFilePath := filepath.Join(storageDirectory, "debug.log")
 
 	for {
 		if _, err := os.Stat(debugLogFilePath); os.IsNotExist(err) {
