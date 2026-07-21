@@ -1,0 +1,88 @@
+{
+  "manifestVersion": 1,
+  "meta": {
+    "name": "D2 Relay",
+    "version": "0.0.1",
+    "logoPath": "logo.png",
+    "shortDescription": "Relay D1 UTXOs to the D2 testnet",
+    "longDescription": "This pup monitors UTXOs sent or received in each Dogecoin (D1) block and relays them to the D2 testnet, enabling stress test scenarios. It reports testnet metrics to the Dogebox GUI, including double-spend detection. D2 submission is stubbed until a D2 release artifact is available.",
+    "upstreamVersions": {
+      "D2 Relay": "v0.0.1"
+    }
+  },
+  "config": {
+    "sections": null
+  },
+  "container": {
+    "build": {
+      "nixFile": "pup.nix",
+      "nixFileSha256": "52b7f0d34b7db96bcd1d5ee18cd68451e849649de412ebe18390a6c524c68dfd"
+    },
+    "services": [
+      {
+        "name": "relay",
+        "command": {
+          "exec": "/bin/relay",
+          "cwd": "",
+          "env": null
+        }
+      }
+    ],
+    "exposes": [],
+    "requiresInternet": false
+  },
+  "interfaces": [],
+  "dependencies": [
+    {
+      "interfaceName": "core-rpc",
+      "interfaceVersion": "0.0.1",
+      "permissionGroups": [
+        "RPC"
+      ],
+      "source": {
+        "sourceLocation": "",
+        "pupName": "",
+        "pupVersion": "",
+        "pupLogoBase64": ""
+      }
+    }
+  ],
+  "metrics": [
+    {
+      "name": "d1_height",
+      "label": "D1 Height",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "last_block",
+      "label": "Last D1 Block",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "utxos_created",
+      "label": "UTXOs Created",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "utxos_spent",
+      "label": "UTXOs Spent",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "relayed_txs",
+      "label": "Relayed Transactions",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "double_spends",
+      "label": "Double Spends",
+      "type": "int",
+      "history": 30
+    }
+  ]
+}
