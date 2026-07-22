@@ -13,8 +13,8 @@ let
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "254921d526b359dc5650ffdeb2d0fe6f9415173e";
-    hash = "sha256-Y2zz/HPUtT7w9ExampHdmyNrrLg+ZMayhHSrfD7KyvM=";
+    rev = "235c7b22192c35c77b8dc187e7771c656743788d";
+    hash = "sha256-VxhP1e14H/Kp52MOvcLmv5w4IK39LsFBZWX5uZ5sFmk=";
   };
 
   d2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {};
