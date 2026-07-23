@@ -2,12 +2,12 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2 Relay",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "logoPath": "logo.png",
     "shortDescription": "Relay D1 UTXOs to the D2 testnet",
     "longDescription": "This pup monitors UTXOs sent or received in each Dogecoin (D1) block and relays them to the D2 testnet, enabling stress test scenarios. It reports testnet metrics to the Dogebox GUI, including double-spend detection.",
     "upstreamVersions": {
-      "D2 Relay": "v0.0.1"
+      "D2 Relay": "v0.0.2"
     }
   },
   "config": {
@@ -16,7 +16,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "52b7f0d34b7db96bcd1d5ee18cd68451e849649de412ebe18390a6c524c68dfd"
+      "nixFileSha256": "7290851f36d91017da4f4048168c34d417e641f6fda4e90b226b7be92396b2e4"
     },
     "services": [
       {

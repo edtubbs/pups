@@ -5,7 +5,7 @@
     "version": "0.0.3",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
-    "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set. The D2 node is built from the dogebox-nur-packages k2 package.",
+    "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
     "upstreamVersions": {
       "K2": "0-unstable-2026-07-23"
     }
