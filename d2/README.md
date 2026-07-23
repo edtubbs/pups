@@ -46,4 +46,3 @@ repo is public.
 - [ ] Implement real RPC polling in `monitor/monitor.go`
 - [ ] Add archival vs light-weight node profiles (config section + flags)
 - [ ] Add the fortnightly reset/bootstrap-from-D1-chainstate logic
-- [ ] Update `nixFileSha256` in `manifest.json` after editing `pup.nix`
