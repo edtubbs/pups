@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-// This monitor reports D2 pup status to the Dogebox GUI. The d2-node
-// binary (from dogebox-nur-packages pkgs/d2) is now launched by the pup,
+// This monitor reports D2 pup status to the Dogebox GUI. The K2
+// binary (from dogebox-nur-packages pkgs/k2) is now launched by the pup,
 // but its RPC interface is not yet documented, so this monitor reports a
 // static status. Once the D2 RPC is documented it should query the node
 // (see the core pup's monitor for the pattern) and report real chain

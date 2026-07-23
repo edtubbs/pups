@@ -14,7 +14,7 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 - Relays each transaction's UTXO activity to the D2 testnet. **The D2
   submission is currently a stub** (see `relayToD2` in `relay/relay.go`) —
   the [D2 pup](../d2) now runs a real node (built from
-  dogebox-nur-packages `pkgs/d2`), but its RPC interface is not yet
+  dogebox-nur-packages `pkgs/k2`), but its RPC interface is not yet
   documented; the D1 monitoring side is fully functional.
 
 ## Metrics (shown in the Dogebox GUI)

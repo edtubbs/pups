@@ -3,21 +3,21 @@
 let
   storageDirectory = "/storage";
 
-  # The D2 packages live in the dogebox-nur-packages repo (pkgs/d2) as a
-  # multi-file package set (default.nix, source.nix, libd2.nix, Cargo.lock),
-  # so we fetch the whole repo pinned to a commit rather than a single file.
+  # The K2 package lives in the dogebox-nur-packages repo (pkgs/k2) as a
+  # multi-file package set (default.nix + source.nix), so we fetch the whole
+  # repo pinned to a commit rather than a single file.
   #
-  # NOTE: the D2 source itself (dogecoinfoundation/d2) is private; the
-  # package fetches it over SSH (see pkgs/d2/source.nix in the NUR repo for
-  # the deploy-key / sandbox requirements). It cannot be built by public CI.
+  # NOTE: the K2 source itself (houseofdoge/km2) is private; the package
+  # fetches it over SSH (see pkgs/k2/source.nix in the NUR repo for the
+  # sandbox requirements). It cannot be built by public CI.
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "235c7b22192c35c77b8dc187e7771c656743788d";
-    hash = "sha256-VxhP1e14H/Kp52MOvcLmv5w4IK39LsFBZWX5uZ5sFmk=";
+    rev = "86284901b230d483109733ea3dcf85f4fbd7e68f";
+    hash = "sha256-nWtVZSORGf0WgeRgB0HmqeTbAvUvlhicYSZ+X7RK4t4=";
   };
 
-  d2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {};
+  k2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/k2" {};
 
   d2d = pkgs.writeScriptBin "run.sh" ''
     #!${pkgs.stdenv.shell}
@@ -35,14 +35,14 @@ let
     # Prefer a conventionally named binary, otherwise fall back to the
     # first binary the d2 package installs.
     D2_BIN=""
-    for candidate in d2-node d2 d2d; do
-      if [ -x "${d2_bin}/bin/$candidate" ]; then
-        D2_BIN="${d2_bin}/bin/$candidate"
+    for candidate in k2 k2d d2-node d2 d2d; do
+      if [ -x "${k2_bin}/bin/$candidate" ]; then
+        D2_BIN="${k2_bin}/bin/$candidate"
         break
       fi
     done
     if [ -z "$D2_BIN" ]; then
-      D2_BIN=$(ls ${d2_bin}/bin/* | head -n 1)
+      D2_BIN=$(ls ${k2_bin}/bin/* | head -n 1)
     fi
 
     echo "Starting D2 node: $D2_BIN" >> ${storageDirectory}/debug.log

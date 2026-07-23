@@ -4,16 +4,15 @@ This pup runs a [D2](https://github.com/dogecoinfoundation/d2) testnet node on y
 
 ## Packaging
 
-The D2 node is built from the `d2` package in
+The D2 node is built from the `k2` package in
 [dogebox-nur-packages](https://github.com/edtubbs/dogebox-nur-packages)
-(`pkgs/d2`), pinned by commit in `pup.nix`. The package builds the
-`d2-node` Go daemon linked against the `libd2` Rust library.
+(`pkgs/k2`), pinned by commit in `pup.nix`.
 
-**Note:** the D2 source repository is private, so the package fetches it
+**Note:** the K2 source repository is private, so the package fetches it
 over SSH. The machine building this pup needs read access to
-`dogecoinfoundation/d2` (see `pkgs/d2/source.nix` in the NUR repo for
-deploy-key / sandbox details). It cannot be built by public CI or the
-binary cache until the repo is public.
+`houseofdoge/km2` (see `pkgs/k2/source.nix` in the NUR repo for sandbox
+details). It cannot be built by public CI or the binary cache until the
+repo is public.
 
 ## Testnet model
 
@@ -29,7 +28,7 @@ binary cache until the repo is public.
 
 | Service   | Description                                                        |
 |-----------|--------------------------------------------------------------------|
-| `d2d`     | The D2 node (from dogebox-nur-packages `pkgs/d2`)                  |
+| `d2d`     | The D2 node (from dogebox-nur-packages `pkgs/k2`)                  |
 | `monitor` | Reports node status/metrics to the Dogebox GUI                     |
 | `logger`  | Tails the node's debug log                                         |
 
