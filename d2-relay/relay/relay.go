@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -15,9 +16,8 @@ import (
 // relays them to the D2 testnet. It also detects double spends (conflicting
 // spends of the same outpoint) and reports testnet metrics to the Dogebox GUI.
 //
-// The D1 side is fully implemented against the core pup's RPC interface.
-// The D2 submission side is stubbed until a D2 release artifact is available
-// (see relayToD2 below).
+// The D1 side reads confirmed transactions from core RPC and forwards their
+// raw transaction bytes to the D2 node over d2-rpc.
 
 // These match the temporary static credentials written by the core pup.
 const (
@@ -59,6 +59,7 @@ type Vout struct {
 
 type Tx struct {
 	TxID string `json:"txid"`
+	Hex  string `json:"hex"`
 	Vin  []Vin  `json:"vin"`
 	Vout []Vout `json:"vout"`
 }
@@ -70,8 +71,11 @@ type Block struct {
 }
 
 type Relay struct {
-	client *http.Client
-	rpcURL string
+	client   *http.Client
+	d1RPCURL string
+	d2RPCURL string
+
+	d2BearerToken string
 
 	spentOutpoints map[string]string // outpoint -> spending txid
 
@@ -85,17 +89,32 @@ type Relay struct {
 }
 
 func newRelay() *Relay {
-	host := os.Getenv("DBX_IFACE_CORE_RPC_HOST")
-	port := os.Getenv("DBX_IFACE_CORE_RPC_PORT")
+	d1Host := os.Getenv("DBX_IFACE_CORE_RPC_HOST")
+	d1Port := os.Getenv("DBX_IFACE_CORE_RPC_PORT")
+	d2Host := os.Getenv("DBX_IFACE_D2_RPC_HOST")
+	d2Port := os.Getenv("DBX_IFACE_D2_RPC_PORT")
 
 	return &Relay{
-		client:         &http.Client{Timeout: 30 * time.Second},
-		rpcURL:         fmt.Sprintf("http://%s:%s/", host, port),
+		client:        &http.Client{Timeout: 30 * time.Second},
+		d1RPCURL:      fmt.Sprintf("http://%s:%s/", d1Host, d1Port),
+		d2RPCURL:      fmt.Sprintf("http://%s:%s/", d2Host, d2Port),
+		d2BearerToken: strings.TrimSpace(firstNonEmptyEnv("DBX_IFACE_D2_RPC_BEARER_TOKEN", "D2_RPC_BEARER_TOKEN")),
+
 		spentOutpoints: make(map[string]string),
 	}
 }
 
-func (r *Relay) rpcCall(method string, params []interface{}, result interface{}) error {
+func firstNonEmptyEnv(keys ...string) string {
+	for _, key := range keys {
+		value := strings.TrimSpace(os.Getenv(key))
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func (r *Relay) d1RPCCall(method string, params []interface{}, result interface{}) error {
 	reqBody, err := json.Marshal(rpcRequest{
 		JSONRPC: "1.0",
 		ID:      "d2-relay",
@@ -106,7 +125,7 @@ func (r *Relay) rpcCall(method string, params []interface{}, result interface{})
 		return err
 	}
 
-	req, err := http.NewRequest("POST", r.rpcURL, bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest("POST", r.d1RPCURL, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return err
 	}
@@ -135,32 +154,102 @@ func (r *Relay) rpcCall(method string, params []interface{}, result interface{})
 	return json.Unmarshal(rpcResp.Result, result)
 }
 
+func (r *Relay) d2RPCCall(method string, params []interface{}, result interface{}) error {
+	reqBody, err := json.Marshal(rpcRequest{
+		JSONRPC: "2.0",
+		ID:      "d2-relay",
+		Method:  method,
+		Params:  params,
+	})
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("POST", r.d2RPCURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if r.d2BearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+r.d2BearerToken)
+	}
+
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var rpcResp rpcResponse
+	if err := json.Unmarshal(body, &rpcResp); err != nil {
+		return fmt.Errorf("error unmarshalling RPC response (status %d): %v", resp.StatusCode, err)
+	}
+	if rpcResp.Error != nil {
+		return fmt.Errorf("RPC error %d: %s", rpcResp.Error.Code, rpcResp.Error.Message)
+	}
+
+	return json.Unmarshal(rpcResp.Result, result)
+}
+
 func (r *Relay) getBlockCount() (int, error) {
 	var count int
-	err := r.rpcCall("getblockcount", nil, &count)
+	err := r.d1RPCCall("getblockcount", nil, &count)
 	return count, err
 }
 
 func (r *Relay) getBlockHash(height int) (string, error) {
 	var hash string
-	err := r.rpcCall("getblockhash", []interface{}{height}, &hash)
+	err := r.d1RPCCall("getblockhash", []interface{}{height}, &hash)
 	return hash, err
 }
 
 func (r *Relay) getBlock(hash string) (Block, error) {
 	var block Block
 	// Verbosity 2 returns full transaction objects.
-	err := r.rpcCall("getblock", []interface{}{hash, 2}, &block)
+	err := r.d1RPCCall("getblock", []interface{}{hash, 2}, &block)
 	return block, err
 }
 
-// relayToD2 submits a D1 transaction's UTXO activity to the D2 testnet.
-//
-// TODO: Implement once the D2 pup has a real node. This should use the
-// d2-rpc interface (DBX_IFACE_D2_RPC_HOST / DBX_IFACE_D2_RPC_PORT) to mirror
-// the transaction on the D2 testnet for stress-testing.
-func (r *Relay) relayToD2(tx Tx) error {
-	log.Printf("[stub] would relay tx %s to D2 (%d inputs, %d outputs)", tx.TxID, len(tx.Vin), len(tx.Vout))
+func (r *Relay) getRawTransactionHex(txid string, blockHash string) (string, error) {
+	var hex string
+	err := r.d1RPCCall("getrawtransaction", []interface{}{txid, false, blockHash}, &hex)
+	return hex, err
+}
+
+func (r *Relay) relayToD2(tx Tx, blockHash string) error {
+	rawHex := strings.TrimSpace(tx.Hex)
+	if rawHex == "" {
+		fallbackHex, err := r.getRawTransactionHex(tx.TxID, blockHash)
+		if err != nil {
+			return fmt.Errorf("missing tx hex in block payload and getrawtransaction fallback failed: %w", err)
+		}
+		rawHex = strings.TrimSpace(fallbackHex)
+	}
+
+	if rawHex == "" {
+		return fmt.Errorf("empty raw tx hex for tx %s", tx.TxID)
+	}
+
+	var result struct {
+		TxID string `json:"txid"`
+	}
+	if err := r.d2RPCCall("d2_sendRawTransaction", []interface{}{rawHex}, &result); err != nil {
+		return err
+	}
+
+	if result.TxID == "" {
+		return fmt.Errorf("d2_sendRawTransaction returned empty txid for source tx %s", tx.TxID)
+	}
+
+	if result.TxID != tx.TxID {
+		log.Printf("Warning: D2 txid mismatch for tx %s, returned %s", tx.TxID, result.TxID)
+	}
+
 	return nil
 }
 
@@ -188,7 +277,7 @@ func (r *Relay) processBlock(block Block) {
 
 		r.utxosCreated += len(tx.Vout)
 
-		if err := r.relayToD2(tx); err != nil {
+		if err := r.relayToD2(tx, block.Hash); err != nil {
 			log.Printf("Error relaying tx %s to D2: %v", tx.TxID, err)
 			continue
 		}
@@ -251,7 +340,11 @@ func main() {
 	time.Sleep(10 * time.Second)
 
 	relay := newRelay()
-	log.Printf("Relaying from D1 RPC at %s", relay.rpcURL)
+	log.Printf("Relaying from D1 RPC at %s", relay.d1RPCURL)
+	log.Printf("Relaying into D2 RPC at %s", relay.d2RPCURL)
+	if relay.d2BearerToken == "" {
+		log.Printf("Warning: D2 RPC bearer token env var is unset (checked DBX_IFACE_D2_RPC_BEARER_TOKEN and D2_RPC_BEARER_TOKEN)")
+	}
 
 	nextHeight := -1
 

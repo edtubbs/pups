@@ -11,11 +11,8 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
   (outputs created) by every transaction.
 - Detects **double spends** — conflicting spends of the same outpoint — and
   counts them as a testnet metric.
-- Relays each transaction's UTXO activity to the D2 testnet. **The D2
-  submission is currently a stub** (see `relayToD2` in `relay/relay.go`) —
-  the [D2 pup](../d2) now runs a real node (built from
-  dogebox-nur-packages `pkgs/k2`), but its RPC interface is not yet
-  documented; the D1 monitoring side is fully functional.
+- Relays each observed D1 transaction to the D2 node via
+  `d2_sendRawTransaction`.
 
 ## Metrics (shown in the Dogebox GUI)
 
@@ -31,10 +28,17 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 ## Dependencies
 
 - `core-rpc` (v0.0.1) from the [Dogecoin Core pup](../core)
+- `d2-rpc` (v0.0.1) from the [D2 pup](../d2)
 
-## Remaining work (once the D2 RPC interface is documented)
+## D2 RPC auth
 
-- [ ] Add a `d2-rpc` dependency to `manifest.json`
-- [ ] Implement `relayToD2` against the D2 node's RPC interface
+- D2 write methods require a bearer token. Set one of:
+  - `DBX_IFACE_D2_RPC_BEARER_TOKEN` (preferred)
+  - `D2_RPC_BEARER_TOKEN` (fallback)
+- The relay sends this token in the HTTP `Authorization` header when calling
+  `d2_sendRawTransaction`.
+
+## Remaining work
+
 - [ ] Add config toggles for stress-test scenarios (replay rate, burst mode)
 - [ ] Add relay lag metric (D1 height vs D2 processed height)
