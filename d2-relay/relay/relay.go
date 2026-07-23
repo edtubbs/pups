@@ -239,7 +239,7 @@ func (r *Relay) relayToD2(tx Tx, blockHash string) error {
 		TxID string `json:"txid"`
 	}
 	if err := r.d2RPCCall("d2_sendRawTransaction", []interface{}{rawHex}, &result); err != nil {
-		return err
+		return fmt.Errorf("failed to relay tx %s to D2: %w", tx.TxID, err)
 	}
 
 	if result.TxID == "" {
@@ -343,7 +343,7 @@ func main() {
 	log.Printf("Relaying from D1 RPC at %s", relay.d1RPCURL)
 	log.Printf("Relaying into D2 RPC at %s", relay.d2RPCURL)
 	if relay.d2BearerToken == "" {
-		log.Printf("Warning: D2 RPC bearer token env var is unset (checked DBX_IFACE_D2_RPC_BEARER_TOKEN and D2_RPC_BEARER_TOKEN)")
+		log.Printf("Warning: D2 RPC bearer token env var is unset (checked DBX_IFACE_D2_RPC_BEARER_TOKEN and D2_RPC_BEARER_TOKEN); relay will call d2_sendRawTransaction without Authorization and may receive unauthorized errors")
 	}
 
 	nextHeight := -1
