@@ -43,7 +43,11 @@ let
       fi
     done
     if [ -z "$D2_BIN" ]; then
-      D2_BIN=$(ls ${k2_bin}/bin/* | head -n 1)
+      D2_BIN=$(ls ${k2_bin}/bin/* 2>/dev/null | head -n 1)
+    fi
+    if [ -z "$D2_BIN" ]; then
+      echo "ERROR: no D2 binary found in ${k2_bin}/bin" | tee -a ${storageDirectory}/debug.log >&2
+      exit 1
     fi
 
     echo "Starting D2 node: $D2_BIN" >> ${storageDirectory}/debug.log

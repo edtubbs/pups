@@ -343,7 +343,9 @@ func main() {
 	log.Printf("Relaying from D1 RPC at %s", relay.d1RPCURL)
 	log.Printf("Relaying into D2 RPC at %s", relay.d2RPCURL)
 	if relay.d2BearerToken == "" {
-		log.Printf("Warning: D2 RPC bearer token env var is unset (checked DBX_IFACE_D2_RPC_BEARER_TOKEN and D2_RPC_BEARER_TOKEN); relay will call d2_sendRawTransaction without Authorization and may receive unauthorized errors")
+		log.Printf("Warning: D2 RPC bearer token not configured.")
+		log.Printf("Checked DBX_IFACE_D2_RPC_BEARER_TOKEN and D2_RPC_BEARER_TOKEN.")
+		log.Printf("RPC calls may fail with unauthorized errors.")
 	}
 
 	nextHeight := -1
