@@ -8,13 +8,14 @@ let
   # repo pinned to a commit rather than a single file.
   #
   # NOTE: the K2 source itself (houseofdoge/km2) is private; the package
-  # fetches it over SSH (see pkgs/k2/source.nix in the NUR repo for the
-  # sandbox requirements). It cannot be built by public CI.
+  # fetches it over SSH via a fixed-output pkgs.fetchgit derivation (see
+  # pkgs/k2/source.nix in the NUR repo for the sandbox/deploy-key
+  # requirements). It cannot be built by public CI.
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "86284901b230d483109733ea3dcf85f4fbd7e68f";
-    hash = "sha256-nWtVZSORGf0WgeRgB0HmqeTbAvUvlhicYSZ+X7RK4t4=";
+    rev = "0822819fe19040e566de9b27574373d49a49a592";
+    hash = "sha256-kdoNccTBfSnxdEaxeTCHsYmZ8M4I0lXDbcrERmGvLbc=";
   };
 
   k2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/k2" {};
