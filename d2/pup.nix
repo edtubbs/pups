@@ -16,8 +16,8 @@ let
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "38074ac9dad6e8dc93e4e6ccb08fe0b72359ca51";
-    hash = "sha256-RnOtAFPPMZKJFNuw7M34ZvNYwMiB+ax4NWyQXB+jCek=";
+    rev = "26a625f3a00a827619359620619b172f86c29f93";
+    hash = "sha256-UR2juVV6O9Ew6i0eAmP7vN2S7OSWeUbRUAprAceiALs=";
   };
 
   d2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {};
