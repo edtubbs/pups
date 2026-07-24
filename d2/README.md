@@ -28,8 +28,8 @@ repo is public.
 
 | Service   | Description                                                        |
 |-----------|--------------------------------------------------------------------|
-| `d2d`     | The D2 node (from dogebox-nur-packages `pkgs/k2`)                  |
-| `monitor` | Reports node status/metrics to the Dogebox GUI                     |
+| `d2d`     | The D2 node, run on testnet (`D2_NETWORK=testnet`), data in `/storage`, P2P on 42069, JSON-RPC 2.0 on 42070 |
+| `monitor` | Polls the node's public read-tier RPC (`d2_getInfo`, `d2_getHealth`, `d2_getValidatorSet`) and reports status/metrics to the Dogebox GUI |
 | `logger`  | Tails the node's debug log                                         |
 
 ## Interfaces
@@ -42,7 +42,10 @@ repo is public.
 
 ## Remaining work
 
-- [ ] Pass explicit P2P/RPC/event port flags to `d2-node` once its CLI is documented
-- [ ] Implement real RPC polling in `monitor/monitor.go`
-- [ ] Add archival vs light-weight node profiles (config section + flags)
+- [ ] Package the actual `d2-node` Go daemon in dogebox-nur-packages (the
+      current `pkgs/k2` builds the km2 key-management **library**, which
+      installs no binaries)
+- [ ] Wire the write-tier RPC bearer token (`/storage/rpc.token`) to dependent
+      pups (d2-relay) via the `d2-rpc` interface
+- [ ] Add archival vs light-weight node profiles (config section + `Role`)
 - [ ] Add the fortnightly reset/bootstrap-from-D1-chainstate logic

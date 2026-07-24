@@ -22,21 +22,23 @@ let
 
   d2d = pkgs.writeScriptBin "run.sh" ''
     #!${pkgs.stdenv.shell}
-    if [ ! -f /storage/rpcuser.txt ] || [ ! -f /storage/rpcpassword.txt ]; then
-        RPCUSER=dogebox_d2_pup_temporary_static_username
-        RPCPASS=dogebox_d2_pup_temporary_static_password
+    # The d2-node daemon is configured via flags > env (D2_ prefix) > TOML
+    # file > defaults. We use env vars to select the testnet chain, keep all
+    # node data in pup storage, and bind the ports declared in manifest.json
+    # (P2P 42069, RPC 42070) instead of the testnet defaults (44556/44555).
+    # The write/admin RPC tier bearer token is written by the node to
+    # ${storageDirectory}/rpc.token on first start; the public read tier
+    # (d2_getInfo, d2_getHealth, ...) needs no auth.
+    export D2_NETWORK=testnet
+    export D2_DATADIR=${storageDirectory}
+    export D2_LISTENP2P=/ip4/0.0.0.0/tcp/42069
+    export D2_RPCLISTEN=0.0.0.0:42070
+    export D2_RPCPUBLIC=true
 
-        echo "$RPCUSER" > /storage/rpcuser.txt
-        echo "$RPCPASS" > /storage/rpcpassword.txt
-    else
-        RPCUSER=$(cat /storage/rpcuser.txt)
-        RPCPASS=$(cat /storage/rpcpassword.txt)
-    fi
-
-    # Prefer a conventionally named binary, otherwise fall back to the
-    # first binary the d2 package installs.
+    # Prefer the documented d2-node binary name, otherwise fall back to the
+    # first binary the package installs.
     D2_BIN=""
-    for candidate in k2 k2d d2-node d2 d2d; do
+    for candidate in d2-node k2 k2d d2 d2d; do
       if [ -x "${k2_bin}/bin/$candidate" ]; then
         D2_BIN="${k2_bin}/bin/$candidate"
         break
@@ -50,10 +52,8 @@ let
       exit 1
     fi
 
-    echo "Starting D2 node: $D2_BIN" >> ${storageDirectory}/debug.log
+    echo "Starting D2 node: $D2_BIN (network=testnet)" >> ${storageDirectory}/debug.log
 
-    # TODO: pass explicit P2P (42069), RPC (42070) and event (42071) port
-    # flags once the d2-node CLI is documented.
     cd ${storageDirectory}
     HOME=${storageDirectory} exec "$D2_BIN" >> ${storageDirectory}/debug.log 2>&1
   '';
