@@ -78,6 +78,7 @@ let
               # snapshot artifacts themselves.
               echo "Snapshot verified (sha256 $GOT_SHA); resetting chain data for new epoch" >> $LOG
               for entry in ${storageDirectory}/* ${storageDirectory}/.[!.]*; do
+                [ -e "$entry" ] || continue
                 case "$(basename "$entry")" in
                   rpc.token|debug.log|utxo.dat|utxo.dat.download|utxo.dat.meta.json) ;;
                   *) rm -rf "$entry" ;;

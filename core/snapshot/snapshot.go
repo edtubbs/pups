@@ -37,6 +37,7 @@ var storageDirectory = "/storage"
 
 const (
 	listenPort      = "28555"
+	coreRPCPort     = "22555"
 	refreshInterval = 14 * 24 * time.Hour // fortnightly testnet reset
 
 	snapshotDirName  = "d2-snapshot"
@@ -127,7 +128,7 @@ func (s *Server) rpcCall(method string, params []interface{}, result interface{}
 		return err
 	}
 
-	url := fmt.Sprintf("http://%s:22555/", os.Getenv("DBX_PUP_IP"))
+	url := fmt.Sprintf("http://%s:%s/", os.Getenv("DBX_PUP_IP"), coreRPCPort)
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return err
@@ -325,7 +326,7 @@ func (s *Server) refresh() error {
 	// otherwise the chain advanced mid-handoff and d2 would silently
 	// accept the wrong base (it performs no base-blockhash check itself).
 	if !strings.EqualFold(dump.BaseHash, bestBlockHash) {
-		return fmt.Errorf("dump base hash %s does not match pre-dump best block %s; retry", dump.BaseHash, bestBlockHash)
+		return fmt.Errorf("dump base hash %s does not match pre-dump best block %s; will retry on the next refresh", dump.BaseHash, bestBlockHash)
 	}
 
 	// Structurally verify the file and locate the end of the last coin.
