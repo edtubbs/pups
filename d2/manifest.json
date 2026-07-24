@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
     "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
@@ -149,6 +149,36 @@
       "label": "Testnet Epoch",
       "type": "string",
       "history": 1
+    },
+    {
+      "name": "peers",
+      "label": "Peers",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "mempool_txs",
+      "label": "Mempool Txs",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "finality_lag",
+      "label": "Finality Lag (blocks)",
+      "type": "int",
+      "history": 30
+    },
+    {
+      "name": "last_block",
+      "label": "Last Finalized Block",
+      "type": "string",
+      "history": 1
+    },
+    {
+      "name": "validators",
+      "label": "Validators",
+      "type": "int",
+      "history": 30
     }
   ]
 }

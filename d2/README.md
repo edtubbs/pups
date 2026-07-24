@@ -32,6 +32,25 @@ repo is public.
 | `monitor` | Polls the node's public read-tier RPC (`d2_getInfo`, `d2_getHealth`, `d2_getValidatorSet`) and reports status/metrics to the Dogebox GUI |
 | `logger`  | Tails the node's debug log                                         |
 
+## Metrics (shown in the Dogebox GUI)
+
+| Metric          | Source RPC            | Description                                  |
+|-----------------|-----------------------|----------------------------------------------|
+| `status`        | `d2_getInfo`/`d2_getHealth` | Running / Syncing / degraded status    |
+| `chain`         | `d2_getInfo`          | Network name (`d2-testnet`)                  |
+| `blocks`        | `d2_getInfo`          | Finalized block height                       |
+| `headers`       | `d2_getInfo`          | Known chain tip height                       |
+| `testnet_epoch` | `d2_getValidatorSet`  | Current validator epoch                      |
+| `peers`         | `d2_getInfo`          | Connected P2P peers                          |
+| `mempool_txs`   | `d2_getMempool`*      | Transactions in the local mempool            |
+| `finality_lag`  | `d2_getHealth`        | Blocks between tip and finalized head        |
+| `last_block`    | `d2_getFinalizedHead` | Hash of the last finalized block             |
+| `validators`    | `d2_getValidatorSet`  | Validators in the current epoch              |
+
+\* `d2_getMempool` is on the authenticated RPC tier; the monitor reads the
+bearer token from `/storage/rpc.token` (written by the node on first start)
+and skips the metric gracefully if unavailable.
+
 ## Interfaces
 
 | Interface    | Port  | Description                                  |
