@@ -2,12 +2,12 @@
   "manifestVersion": 1,
   "meta": {
     "name": "Dogecoin Core",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "logoPath": "logo.png",
     "shortDescription": "Run a full core node on your dogebox",
     "longDescription": "This pup launches and configures a full Dogecoin Core node on your dogebox, allowing you to sync the blockchain and contribute to the network.",
     "upstreamVersions": {
-      "Core": "v1.14.9"
+      "Core": "v1.14.99 (dumptxoutset backport)"
     }
   },
   "config": {
@@ -16,7 +16,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "3f903cfaef48e5416b47719f8103fba7a9498e41e6137f6c89c225111a7bd6bf"
+      "nixFileSha256": "6c816b073ea78084eb51da6532a9feb32bbfe2662e1310bbd750a58a74eb017f"
     },
     "services": [
       {
@@ -31,6 +31,14 @@
         "name": "monitor",
         "command": {
           "exec": "/bin/monitor",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "snapshot",
+        "command": {
+          "exec": "/bin/snapshot",
           "cwd": "",
           "env": null
         }
@@ -80,6 +88,15 @@
           "core-zmq"
         ],
         "listenOnHost": false
+      },
+      {
+        "name": "snapshot",
+        "type": "http",
+        "port": 28555,
+        "interfaces": [
+          "core-snapshot"
+        ],
+        "listenOnHost": false
       }
     ],
     "requiresInternet": true
@@ -123,6 +140,21 @@
           "severity": 2,
           "routes": null,
           "port": 22556
+        }
+      ]
+    },
+    {
+      "name": "core-snapshot",
+      "version": "0.0.1",
+      "permissionGroups": [
+        {
+          "name": "Snapshot",
+          "description": "Allows access to D1 UTXO chainstate snapshots (dumptxoutset) for the D2 handoff",
+          "severity": 1,
+          "routes": [
+            "/snapshot/*"
+          ],
+          "port": 0
         }
       ]
     }

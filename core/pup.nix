@@ -2,9 +2,14 @@
 
 let
   storageDirectory = "/storage";
+  # Dogecoin Core with the dumptxoutset/loadtxoutset backport (builds
+  # edtubbs/dogecoin branch copilot/backport-dumptxoutset-loadtxoutset,
+  # pinned by commit inside the package). The backport adds the
+  # `dumptxoutset` RPC used by the snapshot service below to export the
+  # chainstate for the D2 testnet handoff.
   dogecoind_bin = pkgs.callPackage (pkgs.fetchurl {
-    url = "https://raw.githubusercontent.com/Dogebox-WG/dogebox-nur-packages/6531e850a6e964a9cd4c36671cb9b3b7414d8044/pkgs/dogecoin-core/default.nix";
-    sha256 = "sha256-bSl/IKyAV2Gnh7TNDISBVxouQTdI5jmDqTfs6qfdz2w=";
+    url = "https://raw.githubusercontent.com/edtubbs/dogebox-nur-packages/38074ac9dad6e8dc93e4e6ccb08fe0b72359ca51/pkgs/dogecoin-core-backport/default.nix";
+    sha256 = "sha256-+AO/cy976pcDIGvk/aSRxNLI9B0ehnigPUG3qn0KTrg=";
   }) {
     disableWallet = true;
     disableGUI = true;
@@ -57,6 +62,24 @@ let
     '';
   };
 
+  snapshot = pkgs.buildGoModule {
+    pname = "snapshot";
+    version = "0.0.1";
+    src = ./snapshot;
+    vendorHash = null;
+
+    buildPhase = ''
+      export GO111MODULE=off
+      export GOCACHE=$(pwd)/.gocache
+      go build -ldflags "-X main.storageDirectory=${storageDirectory}" -o snapshot snapshot.go
+    '';
+
+    installPhase = ''
+      mkdir -p $out/bin
+      cp snapshot $out/bin/
+    '';
+  };
+
   logger = pkgs.buildGoModule {
     pname = "logger";
     version = "0.0.1";
@@ -76,5 +99,5 @@ let
   };
 in
 {
-  inherit dogecoind monitor logger;
+  inherit dogecoind monitor snapshot logger;
 }
