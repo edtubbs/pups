@@ -3,59 +3,114 @@
 let
   storageDirectory = "/storage";
 
-  # The K2 package lives in the dogebox-nur-packages repo (pkgs/k2) as a
-  # multi-file package set (default.nix + source.nix), so we fetch the whole
-  # repo pinned to a commit rather than a single file.
+  # The D2 node package lives in the dogebox-nur-packages repo (pkgs/d2) as
+  # a multi-file package set (default.nix + libd2.nix + source.nix), so we
+  # fetch the whole repo pinned to a commit rather than a single file. The
+  # `d2` attribute builds the d2-node Go daemon (installs bin/d2-node),
+  # linked against the libd2 Rust library.
   #
-  # NOTE: the K2 source itself (houseofdoge/km2) is private; the package
-  # fetches it over SSH via a fixed-output pkgs.fetchgit derivation (see
-  # pkgs/k2/source.nix in the NUR repo for the sandbox/deploy-key
+  # NOTE: the d2 source itself (dogecoinfoundation/d2) is private; the
+  # package fetches it over SSH via a fixed-output pkgs.fetchgit derivation
+  # (see pkgs/d2/source.nix in the NUR repo for the sandbox/deploy-key
   # requirements). It cannot be built by public CI.
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "0822819fe19040e566de9b27574373d49a49a592";
-    hash = "sha256-kdoNccTBfSnxdEaxeTCHsYmZ8M4I0lXDbcrERmGvLbc=";
+    rev = "38074ac9dad6e8dc93e4e6ccb08fe0b72359ca51";
+    hash = "sha256-RnOtAFPPMZKJFNuw7M34ZvNYwMiB+ax4NWyQXB+jCek=";
   };
 
-  k2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/k2" {};
+  d2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {};
 
   d2d = pkgs.writeScriptBin "run.sh" ''
     #!${pkgs.stdenv.shell}
     # The d2-node daemon is configured via flags > env (D2_ prefix) > TOML
-    # file > defaults. We use env vars to select the testnet chain, keep all
-    # node data in pup storage, and bind the ports declared in manifest.json
-    # (P2P 42069, RPC 42070) instead of the testnet defaults (44556/44555).
-    # The write/admin RPC tier bearer token is written by the node to
-    # ${storageDirectory}/rpc.token on first start; the public read tier
-    # (d2_getInfo, d2_getHealth, ...) needs no auth.
-    export D2_NETWORK=testnet
+    # file > defaults. We keep all node data in pup storage and bind the
+    # ports declared in manifest.json (P2P 42069, RPC 42070) instead of the
+    # network defaults. The write/admin RPC tier bearer token is written by
+    # the node to ${storageDirectory}/rpc.token on first start; the public
+    # read tier (d2_getInfo, d2_getHealth, ...) needs no auth.
     export D2_DATADIR=${storageDirectory}
     export D2_LISTENP2P=/ip4/0.0.0.0/tcp/42069
     export D2_RPCLISTEN=0.0.0.0:42070
     export D2_RPCPUBLIC=true
 
-    # Prefer the documented d2-node binary name, otherwise fall back to the
-    # first binary the package installs.
-    D2_BIN=""
-    for candidate in d2-node k2 k2d d2 d2d; do
-      if [ -x "${k2_bin}/bin/$candidate" ]; then
-        D2_BIN="${k2_bin}/bin/$candidate"
-        break
+    CURL=${pkgs.curl}/bin/curl
+    JQ=${pkgs.jq}/bin/jq
+    SHA256SUM=${pkgs.coreutils}/bin/sha256sum
+
+    LOG=${storageDirectory}/debug.log
+    SNAPSHOT_FILE=${storageDirectory}/utxo.dat
+    SNAPSHOT_META=${storageDirectory}/utxo.dat.meta.json
+
+    # --- D1 chainstate handoff -------------------------------------------
+    # The core pup's snapshot service (core-snapshot interface) publishes a
+    # raw dumptxoutset v1 file plus metadata (base blockhash, height, coins
+    # count, file sha256). If a new snapshot epoch (different base_hash) is
+    # available, download and verify it, wipe the previous chain data
+    # (preserving rpc.token and logs), and rebuild genesis from the dump.
+    #
+    # Chain-correctness verification happens on the core side before the
+    # dump is published: d2 itself only checks magic + version + structural
+    # decoding. The whole file is read into memory at genesis build and the
+    # parse/sort/Merkle work needs several times the file size in RAM; the
+    # import is single-shot (a failed import aborts node start — replace
+    # the file and restart).
+    SNAP_HOST=$DBX_IFACE_CORE_SNAPSHOT_HOST
+    SNAP_PORT=$DBX_IFACE_CORE_SNAPSHOT_PORT
+    if [ -n "$SNAP_HOST" ] && [ -n "$SNAP_PORT" ]; then
+      SNAP_URL="http://$SNAP_HOST:$SNAP_PORT/snapshot"
+      META_NEW=$($CURL -fsS --max-time 30 "$SNAP_URL/metadata.json" 2>>$LOG || true)
+      if [ -n "$META_NEW" ]; then
+        NEW_BASE=$(echo "$META_NEW" | $JQ -r .base_hash)
+        NEW_SHA=$(echo "$META_NEW" | $JQ -r .file_sha256)
+        CUR_BASE=""
+        if [ -f "$SNAPSHOT_META" ]; then
+          CUR_BASE=$($JQ -r .base_hash "$SNAPSHOT_META" 2>/dev/null || true)
+        fi
+        if [ -n "$NEW_BASE" ] && [ "$NEW_BASE" != "null" ] && [ "$NEW_BASE" != "$CUR_BASE" ]; then
+          echo "New D1 snapshot epoch (base $NEW_BASE), downloading.." >> $LOG
+          if $CURL -fsS -o "$SNAPSHOT_FILE.download" "$SNAP_URL/utxo.dat" 2>>$LOG; then
+            GOT_SHA=$($SHA256SUM "$SNAPSHOT_FILE.download" | cut -d' ' -f1)
+            if [ "$GOT_SHA" = "$NEW_SHA" ]; then
+              # Epoch rollover: reset the chain state so genesis is rebuilt
+              # from the new snapshot. Keep credentials, logs and the
+              # snapshot artifacts themselves.
+              echo "Snapshot verified (sha256 $GOT_SHA); resetting chain data for new epoch" >> $LOG
+              for entry in ${storageDirectory}/* ${storageDirectory}/.[!.]*; do
+                case "$(basename "$entry")" in
+                  rpc.token|debug.log|utxo.dat|utxo.dat.download|utxo.dat.meta.json) ;;
+                  *) rm -rf "$entry" ;;
+                esac
+              done
+              mv "$SNAPSHOT_FILE.download" "$SNAPSHOT_FILE"
+              echo "$META_NEW" > "$SNAPSHOT_META"
+            else
+              echo "Snapshot sha256 mismatch: got $GOT_SHA want $NEW_SHA; keeping current chain" >> $LOG
+              rm -f "$SNAPSHOT_FILE.download"
+            fi
+          else
+            echo "Snapshot download failed; keeping current chain" >> $LOG
+          fi
+        fi
+      else
+        echo "No snapshot metadata available from core-snapshot yet" >> $LOG
       fi
-    done
-    if [ -z "$D2_BIN" ]; then
-      D2_BIN=$(ls ${k2_bin}/bin/* 2>/dev/null | head -n 1)
-    fi
-    if [ -z "$D2_BIN" ]; then
-      echo "ERROR: no D2 binary found in ${k2_bin}/bin" | tee -a ${storageDirectory}/debug.log >&2
-      exit 1
     fi
 
-    echo "Starting D2 node: $D2_BIN (network=testnet)" >> ${storageDirectory}/debug.log
+    D2_BIN=${d2_bin}/bin/d2-node
 
     cd ${storageDirectory}
-    HOME=${storageDirectory} exec "$D2_BIN" >> ${storageDirectory}/debug.log 2>&1
+    if [ -f "$SNAPSHOT_FILE" ]; then
+      # Genesis-time import: the --d1-snapshot flag is only wired for the
+      # regtest devnet genesis path; the raw dumptxoutset file is handed to
+      # the node as-is (no conversion step).
+      echo "Starting D2 node: $D2_BIN (regtest devnet, d1 snapshot $SNAPSHOT_FILE)" >> $LOG
+      HOME=${storageDirectory} exec "$D2_BIN" --regtest-devnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1
+    else
+      echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot)" >> $LOG
+      D2_NETWORK=testnet HOME=${storageDirectory} exec "$D2_BIN" >> $LOG 2>&1
+    fi
   '';
 
   monitor = pkgs.buildGoModule {
