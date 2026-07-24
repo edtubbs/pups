@@ -79,8 +79,13 @@ type Relay struct {
 
 	spentOutpoints map[string]string // outpoint -> spending txid
 
+	// d2ChainID identifies the current D2 testnet epoch: it changes when
+	// the testnet genesis is rebuilt from a fresh D1 snapshot.
+	d2ChainID string
+
 	// Metrics
 	d1Height     int
+	d2Height     int
 	lastBlock    string
 	utxosCreated int
 	utxosSpent   int
@@ -202,6 +207,33 @@ func (r *Relay) getBlockCount() (int, error) {
 	return count, err
 }
 
+// checkD2Epoch polls the D2 node's public d2_getInfo and detects testnet
+// epoch changes (a new chainId after a reset from a fresh D1 snapshot).
+// On an epoch change the spent-outpoint tracking state is reset so stale
+// D1 outpoints from the previous epoch don't produce false double-spend
+// metrics. It also records the D2 tip height for the relay lag metric.
+func (r *Relay) checkD2Epoch() {
+	var info struct {
+		ChainID string `json:"chainId"`
+		Height  int    `json:"height"`
+	}
+	if err := r.d2RPCCall("d2_getInfo", []interface{}{}, &info); err != nil {
+		log.Printf("Error calling d2_getInfo: %v", err)
+		return
+	}
+
+	r.d2Height = info.Height
+
+	if info.ChainID == "" || info.ChainID == r.d2ChainID {
+		return
+	}
+	if r.d2ChainID != "" {
+		log.Printf("D2 testnet epoch changed (chainId %s -> %s): resetting outpoint tracking", r.d2ChainID, info.ChainID)
+		r.spentOutpoints = make(map[string]string)
+	}
+	r.d2ChainID = info.ChainID
+}
+
 func (r *Relay) getBlockHash(height int) (string, error) {
 	var hash string
 	err := r.d1RPCCall("getblockhash", []interface{}{height}, &hash)
@@ -295,6 +327,11 @@ func (r *Relay) processBlock(block Block) {
 }
 
 func (r *Relay) submitMetrics() {
+	relayLag := r.d1Height - r.d2Height
+	if relayLag < 0 {
+		relayLag = 0
+	}
+
 	jsonData := map[string]interface{}{
 		"d1_height":     map[string]interface{}{"value": r.d1Height},
 		"last_block":    map[string]interface{}{"value": r.lastBlock},
@@ -302,6 +339,7 @@ func (r *Relay) submitMetrics() {
 		"utxos_spent":   map[string]interface{}{"value": r.utxosSpent},
 		"relayed_txs":   map[string]interface{}{"value": r.relayedTxs},
 		"double_spends": map[string]interface{}{"value": r.doubleSpends},
+		"relay_lag":     map[string]interface{}{"value": relayLag},
 	}
 
 	marshalledData, err := json.Marshal(jsonData)
@@ -356,6 +394,8 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
+			relay.checkD2Epoch()
+
 			count, err := relay.getBlockCount()
 			if err != nil {
 				log.Printf("Error getting D1 block count: %v", err)

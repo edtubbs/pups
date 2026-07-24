@@ -13,6 +13,10 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
   counts them as a testnet metric.
 - Relays each observed D1 transaction to the D2 node via
   `d2_sendRawTransaction`.
+- Detects **testnet epoch changes** (a new `chainId` from `d2_getInfo` after
+  the fortnightly reset from a fresh D1 snapshot) and resets its
+  spent-outpoint tracking so stale outpoints from the previous epoch don't
+  produce false double-spend metrics.
 
 ## Metrics (shown in the Dogebox GUI)
 
@@ -24,6 +28,7 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 | `utxos_spent`   | Total UTXOs spent (inputs seen)                |
 | `relayed_txs`   | Total transactions relayed to D2               |
 | `double_spends` | Conflicting spends of the same outpoint seen   |
+| `relay_lag`     | D1 height minus D2 tip height (floored at 0)   |
 
 ## Dependencies
 
@@ -41,4 +46,4 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 ## Remaining work
 
 - [ ] Add config toggles for stress-test scenarios (replay rate, burst mode)
-- [ ] Add relay lag metric (D1 height vs D2 processed height)
+- [x] Add relay lag metric (D1 height vs D2 processed height)
