@@ -20,7 +20,13 @@ let
     hash = "sha256-UR2juVV6O9Ew6i0eAmP7vN2S7OSWeUbRUAprAceiALs=";
   };
 
-  d2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {};
+  # Skip the Go test suite during the pup build: the validator's
+  # multi-node libp2p integration test (TestMultiNodeFinalizesOverRealLibp2p)
+  # needs real networking between nodes, which the Nix build sandbox does
+  # not provide, so it times out at height 0 and fails the install.
+  d2_bin = (pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {}).overrideAttrs (_: {
+    doCheck = false;
+  });
 
   d2d = pkgs.writeScriptBin "run.sh" ''
     #!${pkgs.stdenv.shell}
