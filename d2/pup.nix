@@ -78,7 +78,13 @@ let
           echo "New D1 snapshot epoch (base $NEW_BASE), downloading.." >> $LOG
           # Resume partial downloads (-C -): the container can be restarted
           # by systemd mid-download, and restarting from byte 0 every time
-          # means a large snapshot never finishes.
+          # means a large snapshot never finishes. A marker records which
+          # epoch the partial belongs to: resuming into a partial from a
+          # different epoch would corrupt-concatenate two snapshots.
+          if [ -f "$SNAPSHOT_FILE.download" ] && [ "$(cat "$SNAPSHOT_FILE.download.base" 2>/dev/null)" != "$NEW_BASE" ]; then
+            rm -f "$SNAPSHOT_FILE.download"
+          fi
+          echo "$NEW_BASE" > "$SNAPSHOT_FILE.download.base"
           if $CURL -fsS -C - -o "$SNAPSHOT_FILE.download" "$SNAP_URL/utxo.dat" 2>>$LOG; then
             GOT_SHA=$($SHA256SUM "$SNAPSHOT_FILE.download" | cut -d' ' -f1)
             if [ "$GOT_SHA" = "$NEW_SHA" ]; then
