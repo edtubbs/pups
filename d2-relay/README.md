@@ -16,14 +16,18 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 
 ## Metrics (shown in the Dogebox GUI)
 
-| Metric          | Description                                    |
-|-----------------|------------------------------------------------|
-| `d1_height`     | Latest processed D1 block height               |
-| `last_block`    | Hash of the last processed D1 block            |
-| `utxos_created` | Total UTXOs created (outputs seen)             |
-| `utxos_spent`   | Total UTXOs spent (inputs seen)                |
-| `relayed_txs`   | Total transactions relayed to D2               |
-| `relay_lag`     | D1 height minus D2 tip height (floored at 0)   |
+| Metric             | Description                                       |
+|--------------------|---------------------------------------------------|
+| `d1_height`        | Latest processed D1 block height                  |
+| `d2_height`        | D2 chain tip height reported by `d2_getInfo`      |
+| `last_block`       | Hash of the last processed D1 block               |
+| `blocks_processed` | D1 blocks scanned since the relay started         |
+| `utxos_created`    | Total UTXOs created (outputs seen)                |
+| `utxos_spent`      | Total UTXOs spent (inputs seen)                   |
+| `relayed_txs`      | Total transactions relayed to D2                  |
+| `failed_txs`       | Transactions that failed to relay into D2         |
+| `doge_relayed`     | Total DOGE value of successfully relayed txs      |
+| `relay_lag`        | D1 height minus D2 tip height (floored at 0)      |
 
 ## Dependencies
 

@@ -2,13 +2,14 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2 Relay",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "logoPath": "logo.png",
     "shortDescription": "Relay D1 UTXOs to the D2 testnet",
     "longDescription": "This pup monitors UTXOs sent or received in each Dogecoin (D1) block and relays them to the D2 testnet, enabling stress test scenarios. It reports testnet metrics to the Dogebox GUI.",
     "upstreamVersions": {
-      "D2 Relay": "v0.0.3"
-    }
+      "D2 Relay": "v0.0.4"
+    },
+    "nixFileSha256": "e14c44afce9dd97c3dd5ec2e12d9d2d92cdcb91f3111b8156906ed5dedd57e49"
   },
   "config": {
     "sections": null
@@ -69,6 +70,13 @@
       "description": "Latest Dogecoin (D1) block height processed by the relay"
     },
     {
+      "name": "d2_height",
+      "label": "D2 Height",
+      "type": "int",
+      "history": 1,
+      "description": "Current D2 chain tip height reported by d2_getInfo."
+    },
+    {
       "name": "last_block",
       "label": "Last D1 Block",
       "type": "string",
@@ -102,6 +110,27 @@
       "type": "int",
       "history": 30,
       "description": "D1 height minus D2 tip height (0 when D2 has caught up)"
+    },
+    {
+      "name": "blocks_processed",
+      "label": "Blocks Processed",
+      "type": "int",
+      "history": 30,
+      "description": "Number of D1 blocks the relay has scanned since it started."
+    },
+    {
+      "name": "failed_txs",
+      "label": "Failed TXs",
+      "type": "int",
+      "history": 30,
+      "description": "Transactions that failed to relay into the D2 node since the relay started."
+    },
+    {
+      "name": "doge_relayed",
+      "label": "DOGE Relayed",
+      "type": "float",
+      "history": 30,
+      "description": "Total DOGE value (sum of outputs) of transactions successfully relayed into D2 since the relay started."
     }
   ]
 }

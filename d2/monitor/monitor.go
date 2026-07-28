@@ -80,11 +80,14 @@ type NodeInfo struct {
 	Headers      int
 	TestnetEpoch string
 
-	Peers       int
-	MempoolTxs  int
-	FinalityLag int
-	LastBlock   string
-	Validators  int
+	Peers            int
+	MempoolTxs       int
+	FinalityLag      int
+	LastBlock        string
+	Validators       int
+	View             int
+	LastFinalizedAge int
+	TotalTickets     int
 }
 
 var client = &http.Client{Timeout: 10 * time.Second}
@@ -160,6 +163,7 @@ func getNodeInfo() NodeInfo {
 	info.Headers = nodeInfo.Height
 	info.Blocks = nodeInfo.FinalizedHeight
 	info.Peers = nodeInfo.Peers
+	info.View = nodeInfo.View
 
 	if nodeInfo.Syncing {
 		info.Status = "Syncing"
@@ -172,6 +176,7 @@ func getNodeInfo() NodeInfo {
 		log.Printf("Error calling d2_getHealth: %v", err)
 	} else {
 		info.FinalityLag = health.FinalityLagBlocks
+		info.LastFinalizedAge = int(health.LastFinalizedAgeMs / 1000)
 		if health.Status != "" && health.Status != "ok" {
 			info.Status = fmt.Sprintf("%s (%s)", info.Status, health.Status)
 		}
@@ -190,6 +195,7 @@ func getNodeInfo() NodeInfo {
 	} else {
 		info.TestnetEpoch = fmt.Sprintf("%d", validatorSet.Epoch)
 		info.Validators = len(validatorSet.Validators)
+		info.TotalTickets = validatorSet.TotalTickets
 	}
 
 	// Authenticated tier: mempool size (skipped gracefully when the token
@@ -206,16 +212,19 @@ func getNodeInfo() NodeInfo {
 
 func submitMetrics(info NodeInfo) {
 	jsonData := map[string]interface{}{
-		"status":        map[string]interface{}{"value": info.Status},
-		"chain":         map[string]interface{}{"value": info.Chain},
-		"blocks":        map[string]interface{}{"value": info.Blocks},
-		"headers":       map[string]interface{}{"value": info.Headers},
-		"testnet_epoch": map[string]interface{}{"value": info.TestnetEpoch},
-		"peers":         map[string]interface{}{"value": info.Peers},
-		"mempool_txs":   map[string]interface{}{"value": info.MempoolTxs},
-		"finality_lag":  map[string]interface{}{"value": info.FinalityLag},
-		"last_block":    map[string]interface{}{"value": info.LastBlock},
-		"validators":    map[string]interface{}{"value": info.Validators},
+		"status":             map[string]interface{}{"value": info.Status},
+		"chain":              map[string]interface{}{"value": info.Chain},
+		"blocks":             map[string]interface{}{"value": info.Blocks},
+		"headers":            map[string]interface{}{"value": info.Headers},
+		"testnet_epoch":      map[string]interface{}{"value": info.TestnetEpoch},
+		"peers":              map[string]interface{}{"value": info.Peers},
+		"mempool_txs":        map[string]interface{}{"value": info.MempoolTxs},
+		"finality_lag":       map[string]interface{}{"value": info.FinalityLag},
+		"last_block":         map[string]interface{}{"value": info.LastBlock},
+		"validators":         map[string]interface{}{"value": info.Validators},
+		"view":               map[string]interface{}{"value": info.View},
+		"last_finalized_age": map[string]interface{}{"value": info.LastFinalizedAge},
+		"total_tickets":      map[string]interface{}{"value": info.TotalTickets},
 	}
 
 	marshalledData, err := json.Marshal(jsonData)

@@ -78,12 +78,15 @@ type Relay struct {
 	d2ChainID string
 
 	// Metrics
-	d1Height     int
-	d2Height     int
-	lastBlock    string
-	utxosCreated int
-	utxosSpent   int
-	relayedTxs   int
+	d1Height        int
+	d2Height        int
+	lastBlock       string
+	utxosCreated    int
+	utxosSpent      int
+	relayedTxs      int
+	failedTxs       int
+	blocksProcessed int
+	dogeRelayed     float64
 }
 
 func newRelay() *Relay {
@@ -288,11 +291,16 @@ func (r *Relay) processBlock(block Block) {
 
 		if err := r.relayToD2(tx, block.Hash); err != nil {
 			log.Printf("Error relaying tx %s to D2: %v", tx.TxID, err)
+			r.failedTxs++
 			continue
 		}
 		r.relayedTxs++
+		for _, vout := range tx.Vout {
+			r.dogeRelayed += vout.Value
+		}
 	}
 
+	r.blocksProcessed++
 	r.d1Height = block.Height
 	r.lastBlock = block.Hash
 }
@@ -304,12 +312,16 @@ func (r *Relay) submitMetrics() {
 	}
 
 	jsonData := map[string]interface{}{
-		"d1_height":     map[string]interface{}{"value": r.d1Height},
-		"last_block":    map[string]interface{}{"value": r.lastBlock},
-		"utxos_created": map[string]interface{}{"value": r.utxosCreated},
-		"utxos_spent":   map[string]interface{}{"value": r.utxosSpent},
-		"relayed_txs":   map[string]interface{}{"value": r.relayedTxs},
-		"relay_lag":     map[string]interface{}{"value": relayLag},
+		"d1_height":        map[string]interface{}{"value": r.d1Height},
+		"d2_height":        map[string]interface{}{"value": r.d2Height},
+		"last_block":       map[string]interface{}{"value": r.lastBlock},
+		"blocks_processed": map[string]interface{}{"value": r.blocksProcessed},
+		"utxos_created":    map[string]interface{}{"value": r.utxosCreated},
+		"utxos_spent":      map[string]interface{}{"value": r.utxosSpent},
+		"relayed_txs":      map[string]interface{}{"value": r.relayedTxs},
+		"failed_txs":       map[string]interface{}{"value": r.failedTxs},
+		"doge_relayed":     map[string]interface{}{"value": r.dogeRelayed},
+		"relay_lag":        map[string]interface{}{"value": relayLag},
 	}
 
 	marshalledData, err := json.Marshal(jsonData)

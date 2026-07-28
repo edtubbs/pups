@@ -2,13 +2,14 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2",
-    "version": "0.0.14",
+    "version": "0.0.15",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
     "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
     "upstreamVersions": {
       "D2": "0-unstable-2026-07-22"
-    }
+    },
+    "nixFileSha256": "c8d2284a2751ecc0d578fc9e733c10722bed5966f270581c1e526e1da9f56c97"
   },
   "config": {
     "sections": null
@@ -203,6 +204,27 @@
       "type": "int",
       "history": 30,
       "description": "Number of active validators on the D2 testnet"
+    },
+    {
+      "name": "view",
+      "label": "View",
+      "type": "int",
+      "history": 30,
+      "description": "Current consensus view number reported by the D2 node. Advances as validators rotate leadership; a rapidly climbing view without new blocks indicates consensus problems."
+    },
+    {
+      "name": "last_finalized_age",
+      "label": "Finalized Age (s)",
+      "type": "int",
+      "history": 30,
+      "description": "Seconds since the last block was finalized. Continuously growing values mean the chain has stopped finalizing new blocks."
+    },
+    {
+      "name": "total_tickets",
+      "label": "Total Tickets",
+      "type": "int",
+      "history": 30,
+      "description": "Total staked validator tickets in the current validator set, from d2_getValidatorSet."
     }
   ]
 }

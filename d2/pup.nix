@@ -144,7 +144,7 @@ let
 
   monitor = pkgs.buildGoModule {
     pname = "monitor";
-    version = "0.0.1";
+    version = "0.0.2";
     src = ./monitor;
     vendorHash = null;
 
