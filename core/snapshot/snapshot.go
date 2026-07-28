@@ -302,6 +302,22 @@ func (s *Server) refresh() error {
 		return err
 	}
 
+	// Don't publish a snapshot while core is still syncing: dumping during
+	// initial block download produces a genesis-only dump (height 0,
+	// 0 coins) that d2 would then adopt as a new — empty — epoch.
+	var chainInfo struct {
+		Blocks               int64 `json:"blocks"`
+		Headers              int64 `json:"headers"`
+		InitialBlockDownload bool  `json:"initialblockdownload"`
+	}
+	if err := s.rpcCall("getblockchaininfo", nil, &chainInfo); err != nil {
+		return fmt.Errorf("getblockchaininfo: %w", err)
+	}
+	if chainInfo.InitialBlockDownload || chainInfo.Blocks == 0 {
+		return fmt.Errorf("core is still syncing (IBD=%v, blocks=%d/%d headers); deferring snapshot until sync completes",
+			chainInfo.InitialBlockDownload, chainInfo.Blocks, chainInfo.Headers)
+	}
+
 	// Record the best block hash before dumping (SPEC §11.2 step 1): the
 	// dump must be based on exactly this block or the handoff is aborted.
 	var bestBlockHash string
@@ -321,6 +337,12 @@ func (s *Server) refresh() error {
 		return fmt.Errorf("dumptxoutset: %w", err)
 	}
 	log.Printf("dumptxoutset wrote %d coins at height %d (base %s)", dump.CoinsWritten, dump.BaseHeight, dump.BaseHash)
+
+	// Belt-and-braces: never publish an empty dump even if the IBD check
+	// raced with a reindex or the node regressed.
+	if dump.CoinsWritten == 0 || dump.BaseHeight == 0 {
+		return fmt.Errorf("dump is empty (height %d, %d coins); refusing to publish", dump.BaseHeight, dump.CoinsWritten)
+	}
 
 	// The dump must be based on the block we recorded beforehand;
 	// otherwise the chain advanced mid-handoff and d2 would silently
@@ -437,9 +459,16 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 func (s *Server) refreshIfDue() {
 	meta, err := s.currentMetadata()
 	if err == nil {
-		created, perr := time.Parse(time.RFC3339, meta.CreatedAt)
-		if perr == nil && time.Since(created) < refreshInterval {
-			return
+		// An empty (genesis-only) snapshot may have been published by an
+		// earlier version while core was still syncing: replace it as soon
+		// as possible rather than waiting out the fortnight.
+		if meta.CoinsWritten > 0 && meta.BaseHeight > 0 {
+			created, perr := time.Parse(time.RFC3339, meta.CreatedAt)
+			if perr == nil && time.Since(created) < refreshInterval {
+				return
+			}
+		} else {
+			log.Printf("Current snapshot is empty (height %d, %d coins); refreshing now", meta.BaseHeight, meta.CoinsWritten)
 		}
 	}
 	if err := s.refresh(); err != nil {
