@@ -82,6 +82,7 @@ let
           # epoch the partial belongs to: resuming into a partial from a
           # different epoch would corrupt-concatenate two snapshots.
           if [ -f "$SNAPSHOT_FILE.download" ] && [ "$(cat "$SNAPSHOT_FILE.download.base" 2>/dev/null)" != "$NEW_BASE" ]; then
+            echo "Discarding partial download from a previous epoch" >> $LOG
             rm -f "$SNAPSHOT_FILE.download"
           fi
           echo "$NEW_BASE" > "$SNAPSHOT_FILE.download.base"
