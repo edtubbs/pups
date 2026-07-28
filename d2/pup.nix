@@ -76,7 +76,10 @@ let
         fi
         if [ -n "$NEW_BASE" ] && [ "$NEW_BASE" != "null" ] && [ "$NEW_BASE" != "$CUR_BASE" ]; then
           echo "New D1 snapshot epoch (base $NEW_BASE), downloading.." >> $LOG
-          if $CURL -fsS -o "$SNAPSHOT_FILE.download" "$SNAP_URL/utxo.dat" 2>>$LOG; then
+          # Resume partial downloads (-C -): the container can be restarted
+          # by systemd mid-download, and restarting from byte 0 every time
+          # means a large snapshot never finishes.
+          if $CURL -fsS -C - -o "$SNAPSHOT_FILE.download" "$SNAP_URL/utxo.dat" 2>>$LOG; then
             GOT_SHA=$($SHA256SUM "$SNAPSHOT_FILE.download" | cut -d' ' -f1)
             if [ "$GOT_SHA" = "$NEW_SHA" ]; then
               # Epoch rollover: reset the chain state so genesis is rebuilt
@@ -111,9 +114,10 @@ let
     if [ -f "$SNAPSHOT_FILE" ]; then
       # Genesis-time import: the --d1-snapshot flag is only wired for the
       # regtest devnet genesis path; the raw dumptxoutset file is handed to
-      # the node as-is (no conversion step).
+      # the node as-is (no conversion step). regtest_devnet requires the
+      # network to be regtest, so set it explicitly.
       echo "Starting D2 node: $D2_BIN (regtest devnet, d1 snapshot $SNAPSHOT_FILE)" >> $LOG
-      HOME=${storageDirectory} exec "$D2_BIN" --regtest-devnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1
+      D2_NETWORK=regtest HOME=${storageDirectory} exec "$D2_BIN" --regtest-devnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1
     else
       echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot)" >> $LOG
       D2_NETWORK=testnet HOME=${storageDirectory} exec "$D2_BIN" >> $LOG 2>&1
