@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2",
-    "version": "0.0.13",
+    "version": "0.0.14",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
     "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
@@ -138,61 +138,71 @@
       "name": "status",
       "label": "Status",
       "type": "string",
-      "history": 1
+      "history": 1,
+      "description": "Whether the D2 node is running"
     },
     {
       "name": "chain",
       "label": "Chain",
       "type": "string",
-      "history": 1
+      "history": 1,
+      "description": "Network the D2 node is on"
     },
     {
       "name": "blocks",
       "label": "Block Height",
       "type": "int",
-      "history": 30
+      "history": 30,
+      "description": "Current D2 block height"
     },
     {
       "name": "headers",
       "label": "Headers",
       "type": "int",
-      "history": 30
+      "history": 30,
+      "description": "Number of block headers the D2 node has seen"
     },
     {
       "name": "testnet_epoch",
       "label": "Testnet Epoch",
       "type": "string",
-      "history": 1
+      "history": 1,
+      "description": "Current testnet epoch (chain ID); changes when the testnet is reset from a fresh D1 snapshot"
     },
     {
       "name": "peers",
       "label": "Peers",
       "type": "int",
-      "history": 30
+      "history": 30,
+      "description": "Number of peers connected to the D2 node"
     },
     {
       "name": "mempool_txs",
       "label": "Mempool Txs",
       "type": "int",
-      "history": 30
+      "history": 30,
+      "description": "Number of transactions waiting in the D2 mempool"
     },
     {
       "name": "finality_lag",
       "label": "Finality Lag (blocks)",
       "type": "int",
-      "history": 30
+      "history": 30,
+      "description": "Blocks between the chain tip and the last finalized block"
     },
     {
       "name": "last_block",
       "label": "Last Finalized Block",
       "type": "string",
-      "history": 1
+      "history": 1,
+      "description": "Hash of the last finalized D2 block"
     },
     {
       "name": "validators",
       "label": "Validators",
       "type": "int",
-      "history": 30
+      "history": 30,
+      "description": "Number of active validators on the D2 testnet"
     }
   ]
 }

@@ -3,7 +3,7 @@
 let
   relay = pkgs.buildGoModule {
     pname = "relay";
-    version = "0.0.2";
+    version = "0.0.3";
     src = ./relay;
     vendorHash = null;
 

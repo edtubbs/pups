@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-// d2-relay monitors UTXOs sent or received in each Dogecoin (D1) block and
-// relays them to the D2 testnet. It also detects double spends (conflicting
-// spends of the same outpoint) and reports testnet metrics to the Dogebox GUI.
+// d2-relay monitors UTXOs sent or received in each Dogecoin (D1) block,
+// relays them to the D2 testnet, and reports testnet metrics to the
+// Dogebox GUI.
 //
 // The D1 side reads confirmed transactions from core RPC and forwards their
 // raw transaction bytes to the D2 node over d2-rpc.
@@ -24,10 +24,6 @@ const (
 	d1RPCUser = "dogebox_core_pup_temporary_static_username"
 	d1RPCPass = "dogebox_core_pup_temporary_static_password"
 )
-
-// maxTrackedOutpoints bounds the in-memory spent-outpoint set used for
-// double-spend detection.
-const maxTrackedOutpoints = 1000000
 
 type rpcRequest struct {
 	JSONRPC string        `json:"jsonrpc"`
@@ -77,8 +73,6 @@ type Relay struct {
 
 	d2BearerToken string
 
-	spentOutpoints map[string]string // outpoint -> spending txid
-
 	// d2ChainID identifies the current D2 testnet epoch: it changes when
 	// the testnet genesis is rebuilt from a fresh D1 snapshot.
 	d2ChainID string
@@ -90,7 +84,6 @@ type Relay struct {
 	utxosCreated int
 	utxosSpent   int
 	relayedTxs   int
-	doubleSpends int
 }
 
 func newRelay() *Relay {
@@ -104,8 +97,6 @@ func newRelay() *Relay {
 		d1RPCURL:      fmt.Sprintf("http://%s:%s/", d1Host, d1Port),
 		d2RPCURL:      fmt.Sprintf("http://%s:%s/", d2Host, d2Port),
 		d2BearerToken: strings.TrimSpace(firstNonEmptyEnv("DBX_IFACE_D2_RPC_BEARER_TOKEN", "D2_RPC_BEARER_TOKEN")),
-
-		spentOutpoints: make(map[string]string),
 	}
 }
 
@@ -209,9 +200,7 @@ func (r *Relay) getBlockCount() (int, error) {
 
 // checkD2Epoch polls the D2 node's public d2_getInfo and detects testnet
 // epoch changes (a new chainId after a reset from a fresh D1 snapshot).
-// On an epoch change the spent-outpoint tracking state is reset so stale
-// D1 outpoints from the previous epoch don't produce false double-spend
-// metrics. It also records the D2 tip height for the relay lag metric.
+// It also records the D2 tip height for the relay lag metric.
 func (r *Relay) checkD2Epoch() {
 	var info struct {
 		ChainID string `json:"chainId"`
@@ -228,8 +217,7 @@ func (r *Relay) checkD2Epoch() {
 		return
 	}
 	if r.d2ChainID != "" {
-		log.Printf("D2 testnet epoch changed (chainId %s -> %s): resetting outpoint tracking", r.d2ChainID, info.ChainID)
-		r.spentOutpoints = make(map[string]string)
+		log.Printf("D2 testnet epoch changed (chainId %s -> %s)", r.d2ChainID, info.ChainID)
 	}
 	r.d2ChainID = info.ChainID
 }
@@ -293,18 +281,7 @@ func (r *Relay) processBlock(block Block) {
 			if vin.Coinbase != "" {
 				continue
 			}
-
-			outpoint := fmt.Sprintf("%s:%d", vin.TxID, vin.Vout)
-			if spender, seen := r.spentOutpoints[outpoint]; seen {
-				if spender != tx.TxID {
-					r.doubleSpends++
-					log.Printf("DOUBLE SPEND detected: outpoint %s spent by both %s and %s", outpoint, spender, tx.TxID)
-				}
-				// Duplicate input within the same transaction: skip.
-			} else {
-				r.spentOutpoints[outpoint] = tx.TxID
-				r.utxosSpent++
-			}
+			r.utxosSpent++
 		}
 
 		r.utxosCreated += len(tx.Vout)
@@ -314,12 +291,6 @@ func (r *Relay) processBlock(block Block) {
 			continue
 		}
 		r.relayedTxs++
-	}
-
-	// Bound memory usage: reset tracking if the set grows too large.
-	if len(r.spentOutpoints) > maxTrackedOutpoints {
-		log.Printf("Spent outpoint set exceeded %d entries, resetting", maxTrackedOutpoints)
-		r.spentOutpoints = make(map[string]string)
 	}
 
 	r.d1Height = block.Height
@@ -338,7 +309,6 @@ func (r *Relay) submitMetrics() {
 		"utxos_created": map[string]interface{}{"value": r.utxosCreated},
 		"utxos_spent":   map[string]interface{}{"value": r.utxosSpent},
 		"relayed_txs":   map[string]interface{}{"value": r.relayedTxs},
-		"double_spends": map[string]interface{}{"value": r.doubleSpends},
 		"relay_lag":     map[string]interface{}{"value": relayLag},
 	}
 

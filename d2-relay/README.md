@@ -9,14 +9,10 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 - Polls the D1 core pup's RPC interface (`core-rpc` dependency) for new blocks.
 - For each new block, extracts the UTXOs sent (inputs spent) and received
   (outputs created) by every transaction.
-- Detects **double spends** — conflicting spends of the same outpoint — and
-  counts them as a testnet metric.
 - Relays each observed D1 transaction to the D2 node via
   `d2_sendRawTransaction`.
 - Detects **testnet epoch changes** (a new `chainId` from `d2_getInfo` after
-  the fortnightly reset from a fresh D1 snapshot) and resets its
-  spent-outpoint tracking so stale outpoints from the previous epoch don't
-  produce false double-spend metrics.
+  the fortnightly reset from a fresh D1 snapshot).
 
 ## Metrics (shown in the Dogebox GUI)
 
@@ -27,7 +23,6 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 | `utxos_created` | Total UTXOs created (outputs seen)             |
 | `utxos_spent`   | Total UTXOs spent (inputs seen)                |
 | `relayed_txs`   | Total transactions relayed to D2               |
-| `double_spends` | Conflicting spends of the same outpoint seen   |
 | `relay_lag`     | D1 height minus D2 tip height (floored at 0)   |
 
 ## Dependencies
