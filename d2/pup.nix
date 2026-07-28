@@ -96,7 +96,7 @@ let
               for entry in ${storageDirectory}/* ${storageDirectory}/.[!.]*; do
                 [ -e "$entry" ] || continue
                 case "$(basename "$entry")" in
-                  rpc.token|debug.log|utxo.dat|utxo.dat.download|utxo.dat.meta.json) ;;
+                  rpc.token|debug.log|utxo.dat|utxo.dat.download|utxo.dat.download.base|utxo.dat.meta.json) ;;
                   *) rm -rf "$entry" ;;
                 esac
               done
