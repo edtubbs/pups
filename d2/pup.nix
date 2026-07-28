@@ -118,17 +118,28 @@ let
     D2_BIN=${d2_bin}/bin/d2-node
 
     cd ${storageDirectory}
+    # Run the node without exec: if it exits (e.g. a bad snapshot import or
+    # config error), sleep before returning so systemd's restart rate-limit
+    # (StartLimitBurst) isn't tripped by an instant crash loop that would
+    # leave d2d.service permanently failed.
+    STATUS=0
     if [ -f "$SNAPSHOT_FILE" ]; then
       # Genesis-time import: the --d1-snapshot flag is only wired for the
       # regtest devnet genesis path; the raw dumptxoutset file is handed to
       # the node as-is (no conversion step). regtest_devnet requires the
-      # network to be regtest, so set it explicitly.
+      # network to be regtest — force it via the --network flag (highest
+      # config precedence); the D2_NETWORK env var alone was not honored.
       echo "Starting D2 node: $D2_BIN (regtest devnet, d1 snapshot $SNAPSHOT_FILE)" >> $LOG
-      D2_NETWORK=regtest HOME=${storageDirectory} exec "$D2_BIN" --regtest-devnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1
+      HOME=${storageDirectory} "$D2_BIN" --network regtest --regtest-devnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1 || STATUS=$?
     else
       echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot)" >> $LOG
-      D2_NETWORK=testnet HOME=${storageDirectory} exec "$D2_BIN" >> $LOG 2>&1
+      HOME=${storageDirectory} "$D2_BIN" --network testnet >> $LOG 2>&1 || STATUS=$?
     fi
+    if [ "$STATUS" -ne 0 ]; then
+      echo "D2 node exited with status $STATUS; backing off 30s before restart" >> $LOG
+      sleep 30
+    fi
+    exit $STATUS
   '';
 
   monitor = pkgs.buildGoModule {
