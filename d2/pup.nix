@@ -67,11 +67,33 @@ let
     if [ -n "$SNAP_HOST" ] && [ -n "$SNAP_PORT" ]; then
       SNAP_URL="http://$SNAP_HOST:$SNAP_PORT/snapshot"
       META_NEW=$($CURL -fsS --max-time 30 "$SNAP_URL/metadata.json" 2>>$LOG || true)
+      # Startup race: on a simultaneous boot (box restart, fresh install) the
+      # core pup's snapshot HTTP server may not be listening yet. If there is
+      # no local snapshot to fall back on, a one-shot check would strand the
+      # node on testnet forever — so keep polling until metadata appears.
+      # With a local snapshot present the node can start immediately and the
+      # next restart will pick up any new epoch.
+      if [ -z "$META_NEW" ] && [ ! -f "$SNAPSHOT_FILE" ]; then
+        echo "core-snapshot not reachable and no local snapshot; waiting for snapshot metadata.." >> $LOG
+        ATTEMPT=0
+        while [ -z "$META_NEW" ]; do
+          sleep 15
+          ATTEMPT=$((ATTEMPT+1))
+          if [ $((ATTEMPT % 20)) -eq 0 ]; then
+            echo "Still waiting for core-snapshot metadata (attempt $ATTEMPT).." >> $LOG
+          fi
+          META_NEW=$($CURL -fsS --max-time 30 "$SNAP_URL/metadata.json" 2>/dev/null || true)
+        done
+        echo "core-snapshot is now reachable" >> $LOG
+      fi
       if [ -n "$META_NEW" ]; then
         NEW_BASE=$(echo "$META_NEW" | $JQ -r .base_hash)
         NEW_SHA=$(echo "$META_NEW" | $JQ -r .file_sha256)
         CUR_BASE=""
-        if [ -f "$SNAPSHOT_META" ]; then
+        # Only trust the recorded epoch if the snapshot file itself is still
+        # present — a stale meta file without utxo.dat must not suppress the
+        # (re-)download.
+        if [ -f "$SNAPSHOT_META" ] && [ -f "$SNAPSHOT_FILE" ]; then
           CUR_BASE=$($JQ -r .base_hash "$SNAPSHOT_META" 2>/dev/null || true)
         fi
         if [ -n "$NEW_BASE" ] && [ "$NEW_BASE" != "null" ] && [ "$NEW_BASE" != "$CUR_BASE" ]; then
@@ -105,9 +127,22 @@ let
             else
               echo "Snapshot sha256 mismatch: got $GOT_SHA want $NEW_SHA; keeping current chain" >> $LOG
               rm -f "$SNAPSHOT_FILE.download"
+              # Without a local snapshot there is no chain to keep — exit and
+              # let systemd restart the script to retry the download rather
+              # than starting a stranded testnet node.
+              if [ ! -f "$SNAPSHOT_FILE" ]; then
+                sleep 30
+                exit 1
+              fi
             fi
           else
             echo "Snapshot download failed; keeping current chain" >> $LOG
+            # Same as above: retry via restart (the partial download resumes)
+            # instead of falling back to testnet when no snapshot exists yet.
+            if [ ! -f "$SNAPSHOT_FILE" ]; then
+              sleep 30
+              exit 1
+            fi
           fi
         fi
       else
