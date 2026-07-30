@@ -17,7 +17,7 @@ let
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
     rev = "c6a2145bb21ccd2ba373544d27211598f5993054";
-    hash = "sha256-hD8yfsfs/qM/HwvSjNa1vaMN5CQFzERDrP4xzmN7oKQ=";
+    hash = "sha256-3NyrQnaGb5odo46OO9evaoJwaSfk0SKyQ9sP+pm+wTo=";
   };
 
   # Skip the Go test suite during the pup build: the validator's
