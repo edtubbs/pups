@@ -40,6 +40,13 @@ let
     export D2_LISTENP2P=/ip4/0.0.0.0/tcp/42069
     export D2_RPCLISTEN=0.0.0.0:42070
     export D2_RPCPUBLIC=true
+    # Debug-level logging: stdout/stderr are appended to
+    # ${storageDirectory}/debug.log below (tailed by the logger service), so
+    # the node's step-by-step logs are visible: snapshot header, import pass
+    # progress with rate/ETA, "chain engine started", "chain genesis ready",
+    # "node started", per-RPC "rpc call" lines, "block produced" and the 60s
+    # "node status" heartbeat.
+    export D2_LOGLEVEL=debug
 
     CURL=${pkgs.curl}/bin/curl
     JQ=${pkgs.jq}/bin/jq
@@ -159,13 +166,22 @@ let
     # leave d2d.service permanently failed.
     STATUS=0
     if [ -f "$SNAPSHOT_FILE" ]; then
-      # Genesis-time import: the --d1-snapshot flag is only wired for the
-      # regtest devnet genesis path; the raw dumptxoutset file is handed to
-      # the node as-is (no conversion step). regtest_devnet requires the
-      # network to be regtest — force it via the --network flag (highest
-      # config precedence); the D2_NETWORK env var alone was not honored.
-      echo "Starting D2 node: $D2_BIN (regtest devnet, d1 snapshot $SNAPSHOT_FILE)" >> $LOG
-      HOME=${storageDirectory} "$D2_BIN" --network regtest --regtest-devnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1 || STATUS=$?
+      # Genesis-time import: boot the real testnet chain engine bootstrapped
+      # from the D1 UTXO snapshot (D2 has only mainnet, testnet and regtest —
+      # there is no "devnet"). The raw dumptxoutset file is handed to the
+      # node as-is (no conversion step); --network is forced via flag
+      # (highest config precedence).
+      #
+      # Memory budget: the mainnet snapshot import (203M UTXOs) currently
+      # peaks >12G of RAM in pass 2 — use a testnet-sized snapshot until
+      # libd2's import memory fix lands. Genesis is rebuilt from the
+      # snapshot on EVERY restart (no persistence yet), so a slow import
+      # must not be interrupted: give d2d.service a generous memory
+      # allowance and raise the systemd start timeout (or disable
+      # restart-on-startup-timeout) to avoid restart loops that re-run the
+      # import from scratch.
+      echo "Starting D2 node: $D2_BIN (network=testnet, d1 snapshot $SNAPSHOT_FILE)" >> $LOG
+      HOME=${storageDirectory} "$D2_BIN" --network testnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1 || STATUS=$?
     else
       echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot)" >> $LOG
       HOME=${storageDirectory} "$D2_BIN" --network testnet >> $LOG 2>&1 || STATUS=$?

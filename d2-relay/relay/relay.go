@@ -261,7 +261,14 @@ func (r *Relay) relayToD2(tx Tx, blockHash string) error {
 	var result struct {
 		TxID string `json:"txid"`
 	}
+	// NOTE: d2_sendRawTransaction expects canonical D2 transaction hex, not
+	// raw D1 tx hex. Forwarded D1 transactions will be rejected with a
+	// decode error until this relay translates them into D2
+	// migration-claim/canonical transactions.
 	if err := r.d2RPCCall("d2_sendRawTransaction", []interface{}{rawHex}, &result); err != nil {
+		// Log the rejection with the D2 error code (embedded in the RPC
+		// error) for debugging.
+		log.Printf("D2 rejected raw tx %s (D1 hex is not canonical D2 tx hex; needs migration-claim translation): %v", tx.TxID, err)
 		return fmt.Errorf("failed to relay tx %s to D2: %w", tx.TxID, err)
 	}
 

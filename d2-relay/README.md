@@ -11,6 +11,14 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
   (outputs created) by every transaction.
 - Relays each observed D1 transaction to the D2 node via
   `d2_sendRawTransaction`.
+
+> **Known limitation:** `d2_sendRawTransaction` expects **canonical D2
+> transaction hex**, not raw D1 tx hex. Forwarded D1 transactions are
+> currently rejected with a decode error until the relay translates them
+> into D2 migration-claim/canonical transactions. Rejected submissions are
+> logged with the D2 error code for debugging (and counted in
+> `failed_txs`).
+
 - Detects **testnet epoch changes** (a new `chainId` from `d2_getInfo` after
   the fortnightly reset from a fresh D1 snapshot).
 
@@ -44,5 +52,8 @@ UTXO set, and reports testnet metrics to the Dogebox GUI.
 
 ## Remaining work
 
+- [ ] Translate D1 raw transactions into D2 migration-claim/canonical
+      transactions before submission (currently rejected by
+      `d2_sendRawTransaction` with a decode error)
 - [ ] Add config toggles for stress-test scenarios (replay rate, burst mode)
 - [x] Add relay lag metric (D1 height vs D2 processed height)

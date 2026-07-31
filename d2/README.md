@@ -24,9 +24,10 @@ until the repo is public.
   (different base blockhash) is available, `run.sh` downloads the file,
   verifies its sha256 against the metadata, wipes the previous chain data
   (preserving `rpc.token` and logs), and starts the node with
-  `--regtest-devnet --d1-snapshot /storage/utxo.dat` so genesis is rebuilt
-  from the dump. Without a snapshot the node falls back to a plain testnet
-  start.
+  `--network testnet --d1-snapshot /storage/utxo.dat` so the real testnet
+  chain engine is bootstrapped from the dump. (D2 has only mainnet, testnet
+  and regtest networks — there is no "devnet".) Without a snapshot the node
+  falls back to a plain testnet start.
 - The handoff is **genesis-time only and single-shot**: there is no runtime
   `loadtxoutset`-style import, and a failed import simply aborts node start
   (cheap to retry after replacing the file). Chain correctness (right
@@ -35,7 +36,20 @@ until the repo is public.
   decoding.
 - **Memory budget:** the whole snapshot file is read into memory and handed
   to libd2 as one byte slice, and parsing builds the full entry vector plus
-  sorted Merkle trees in RAM — budget several times the file size.
+  sorted Merkle trees in RAM — budget several times the file size. The
+  mainnet snapshot import (203M UTXOs) currently peaks **>12G in pass 2**;
+  use a testnet-sized snapshot until libd2's import memory fix lands, and
+  give the `d2d` service a generous memory allowance.
+- **Restarts:** genesis is rebuilt from the snapshot on **every restart**
+  (no persistence yet), so avoid restart loops on slow imports — raise the
+  systemd start timeout for `d2d.service` (or disable
+  restart-on-startup-timeout) so a long import is not killed and re-run
+  from scratch.
+- The node runs with debug-level logging; stdout/stderr are captured to
+  `/storage/debug.log` (tailed by the `logger` service), showing the
+  snapshot header, import pass progress with rate/ETA, "chain engine
+  started", "chain genesis ready", "node started", per-RPC "rpc call"
+  lines, "block produced" and the 60s "node status" heartbeat.
 - The companion [`d2-relay`](../d2-relay) pup monitors UTXOs sent/received in
   D1 blocks and relays them to the D2 testnet, and reports testnet metrics
   (including double-spend detection) to the Dogebox GUI.
@@ -44,7 +58,7 @@ until the repo is public.
 
 | Service   | Description                                                        |
 |-----------|--------------------------------------------------------------------|
-| `d2d`     | The D2 node, data in `/storage`, P2P on 42069, JSON-RPC 2.0 on 42070; boots from the D1 snapshot (`--regtest-devnet --d1-snapshot`) when one is available, plain testnet otherwise |
+| `d2d`     | The D2 node, data in `/storage`, P2P on 42069, JSON-RPC 2.0 on 42070; boots from the D1 snapshot (`--network testnet --d1-snapshot`) when one is available, plain testnet otherwise |
 | `monitor` | Polls the node's public read-tier RPC (`d2_getInfo`, `d2_getHealth`, `d2_getValidatorSet`) and reports status/metrics to the Dogebox GUI |
 | `logger`  | Tails the node's debug log                                         |
 
