@@ -16,8 +16,8 @@ let
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "e3e58fe83f6f33b3cedddaf39e29c01fb6f40bcd";
-    hash = "sha256-tT3/5l2Gx271HITDlprItkRYqXSeieDRexzH11BHm0o=";
+    rev = "4539f992e5493816b148a24fceb7711b7e819a07";
+    hash = "sha256-avB0KxOutTrIAAohLMYpfATeYOIau/dUsYsxYxfB+bQ=";
   };
 
   # Skip the Go test suite during the pup build: the validator's
