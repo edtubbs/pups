@@ -56,6 +56,7 @@ type getInfoResult struct {
 
 type getHealthResult struct {
 	Status             string `json:"status"`
+	StartupPhase       string `json:"startupPhase"`
 	FinalityLagBlocks  int    `json:"finalityLagBlocks"`
 	LastFinalizedAgeMs int64  `json:"lastFinalizedAgeMs"`
 	ViewHealthy        bool   `json:"viewHealthy"`
@@ -177,7 +178,13 @@ func getNodeInfo() NodeInfo {
 	} else {
 		info.FinalityLag = health.FinalityLagBlocks
 		info.LastFinalizedAge = int(health.LastFinalizedAgeMs / 1000)
-		if health.Status != "" && health.Status != "ok" {
+		if health.Status == "importing" {
+			if health.StartupPhase != "" {
+				info.Status = health.StartupPhase
+			} else {
+				info.Status = "importing"
+			}
+		} else if health.Status != "" && health.Status != "ok" {
 			info.Status = fmt.Sprintf("%s (%s)", info.Status, health.Status)
 		}
 	}
