@@ -96,7 +96,7 @@ and skips the metric gracefully if unavailable.
 
 ## Remaining work
 
-- [x] Package the actual `d2-node` Go daemon in dogebox-nur-packages
+- [x] Package the actual `d2-node` Rust daemon in dogebox-nur-packages
       (`pkgs/d2`, installs `bin/d2-node`)
 - [x] Add the fortnightly reset/bootstrap-from-D1-chainstate logic
 - [ ] Wire the write-tier RPC bearer token (`/storage/rpc.token`) to dependent

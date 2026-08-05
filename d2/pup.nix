@@ -4,10 +4,12 @@ let
   storageDirectory = "/storage";
 
   # The D2 node package lives in the dogebox-nur-packages repo (pkgs/d2) as
-  # a multi-file package set (default.nix + libd2.nix + source.nix), so we
-  # fetch the whole repo pinned to a commit rather than a single file. The
-  # `d2` attribute builds the d2-node Go daemon (installs bin/d2-node),
-  # linked against the libd2 Rust library.
+  # a multi-file package set (default.nix + libd2.nix + d2-core.nix +
+  # source.nix), so we fetch the whole repo pinned to a commit rather than a
+  # single file. D2 has migrated from Go to Rust: the default attribute now
+  # builds the d2-node Cargo workspace with rustPlatform.buildRustPackage
+  # (installs bin/d2-node), compiling the libd2 crates in-tree via Cargo
+  # path dependencies rather than linking a prebuilt library.
   #
   # NOTE: the d2 source itself (dogecoinfoundation/d2) is private; the
   # package fetches it over SSH via a fixed-output pkgs.fetchgit derivation
@@ -16,17 +18,14 @@ let
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "4539f992e5493816b148a24fceb7711b7e819a07";
-    hash = "sha256-avB0KxOutTrIAAohLMYpfATeYOIau/dUsYsxYxfB+bQ=";
+    rev = "a87d22714ca3414de54cbbb21e7b4628a3c1c1e7";
+    hash = "sha256-QfUAb5lRHVJRqRPnHX6c1zoYQT5KSyHqpcmxe2TaTY0=";
   };
 
-  # Skip the Go test suite during the pup build: the validator's
-  # multi-node libp2p integration test (TestMultiNodeFinalizesOverRealLibp2p)
-  # needs real networking between nodes, which the Nix build sandbox does
-  # not provide, so it times out at height 0 and fails the install.
-  d2_bin = (pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {}).overrideAttrs (_: {
-    doCheck = false;
-  });
+  # The NUR package already sets doCheck = false: the Rust workspace's
+  # multi-node integration tests need real networking between nodes, which
+  # the Nix build sandbox does not provide.
+  d2_bin = pkgs.callPackage "${dogebox-nur-packages}/pkgs/d2" {};
 
   d2d = pkgs.writeScriptBin "run.sh" ''
     #!${pkgs.stdenv.shell}
