@@ -55,6 +55,36 @@ let
     SNAPSHOT_FILE=${storageDirectory}/utxo.dat
     SNAPSHOT_META=${storageDirectory}/utxo.dat.meta.json
 
+    D2_BIN=${d2_bin}/bin/d2-node
+    PKILL=${pkgs.procps}/bin/pkill
+    PGREP=${pkgs.procps}/bin/pgrep
+
+    # --- Reap orphaned nodes from a previous run --------------------------
+    # The node's redb store (${storageDirectory}/store.db) is protected by a
+    # file lock held for as long as a process has it open, so a second
+    # instance dies with "Database already open. Cannot acquire lock.".
+    # If this wrapper is killed (supervisor restart, memory pressure) the
+    # d2-node child is NOT killed with it, so a fresh wrapper would loop
+    # forever against the still-running orphan. Terminate any leftover
+    # d2-node before starting a new one, and wait for the lock to be
+    # released.
+    if $PGREP -f "$D2_BIN" > /dev/null 2>&1; then
+      echo "Found a running d2-node from a previous wrapper; terminating it" >> $LOG
+      $PKILL -TERM -f "$D2_BIN" >> $LOG 2>&1 || true
+      WAITED=0
+      while $PGREP -f "$D2_BIN" > /dev/null 2>&1; do
+        sleep 2
+        WAITED=$((WAITED+2))
+        if [ "$WAITED" -ge 60 ]; then
+          echo "Previous d2-node still alive after ''${WAITED}s; sending SIGKILL" >> $LOG
+          $PKILL -KILL -f "$D2_BIN" >> $LOG 2>&1 || true
+          sleep 5
+          break
+        fi
+      done
+      echo "Previous d2-node stopped after ''${WAITED}s" >> $LOG
+    fi
+
     # --- D1 chainstate handoff -------------------------------------------
     # The core pup's snapshot service (core-snapshot interface) publishes a
     # raw dumptxoutset v1 file plus metadata (base blockhash, height, coins
@@ -156,14 +186,25 @@ let
       fi
     fi
 
-    D2_BIN=${d2_bin}/bin/d2-node
-
     cd ${storageDirectory}
-    # Run the node without exec: if it exits (e.g. a bad snapshot import or
-    # config error), sleep before returning so systemd's restart rate-limit
-    # (StartLimitBurst) isn't tripped by an instant crash loop that would
-    # leave d2d.service permanently failed.
+    # Run the node as a background child (not exec) so this wrapper can
+    # forward termination signals to it: on SIGTERM/SIGINT the supervisor
+    # would otherwise only kill the shell and leave the node running,
+    # holding the redb lock. If the node exits on its own (bad snapshot
+    # import or config error), sleep before returning so systemd's restart
+    # rate-limit (StartLimitBurst) isn't tripped by an instant crash loop
+    # that would leave d2d.service permanently failed.
     STATUS=0
+    D2_PID=""
+    terminate() {
+      if [ -n "$D2_PID" ]; then
+        echo "Wrapper received a termination signal; stopping d2-node ($D2_PID)" >> $LOG
+        kill -TERM "$D2_PID" 2>/dev/null || true
+        wait "$D2_PID" 2>/dev/null || true
+      fi
+      exit 143
+    }
+    trap terminate TERM INT HUP
     if [ -f "$SNAPSHOT_FILE" ]; then
       # Genesis-time import: boot the real testnet chain engine bootstrapped
       # from the D1 UTXO snapshot (D2 has only mainnet, testnet and regtest —
@@ -180,11 +221,20 @@ let
       # restart-on-startup-timeout) to avoid restart loops that re-run the
       # import from scratch.
       echo "Starting D2 node: $D2_BIN (network=testnet, d1 snapshot $SNAPSHOT_FILE)" >> $LOG
-      HOME=${storageDirectory} "$D2_BIN" --network testnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1 || STATUS=$?
+      HOME=${storageDirectory} "$D2_BIN" --network testnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1 &
     else
       echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot)" >> $LOG
-      HOME=${storageDirectory} "$D2_BIN" --network testnet >> $LOG 2>&1 || STATUS=$?
+      HOME=${storageDirectory} "$D2_BIN" --network testnet >> $LOG 2>&1 &
     fi
+    D2_PID=$!
+    wait "$D2_PID"
+    STATUS=$?
+    # `wait` returns early (>128) if an untrapped signal interrupts it; keep
+    # waiting while the child is still alive so STATUS is its real status.
+    while [ "$STATUS" -gt 128 ] && kill -0 "$D2_PID" 2>/dev/null; do
+      wait "$D2_PID"
+      STATUS=$?
+    done
     if [ "$STATUS" -ne 0 ]; then
       echo "D2 node exited with status $STATUS; backing off 30s before restart" >> $LOG
       sleep 30
