@@ -8,8 +8,8 @@ let
   # `dumptxoutset` RPC used by the snapshot service below to export the
   # chainstate for the D2 testnet handoff.
   dogecoind_bin = pkgs.callPackage (pkgs.fetchurl {
-    url = "https://raw.githubusercontent.com/edtubbs/dogebox-nur-packages/24dfaf8bc841578b3cf5f752451f4e1ab31465ee/pkgs/dogecoin-core-backport/default.nix";
-    sha256 = "sha256-gp837KUHxdBapRwgHUMUv+s1xNcxmckt3I19VbCL6vs=";
+    url = "https://raw.githubusercontent.com/edtubbs/dogebox-nur-packages/632e31e754fc2df71f3d914c194a0ca288f795fc/pkgs/dogecoin-core-backport/default.nix";
+    sha256 = "sha256-sFXb0P5WwL4yzXRqH1HE73sGkDh4cVuWtXEjl3KSJsc=";
   }) {
     disableWallet = true;
     disableGUI = true;
