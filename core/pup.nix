@@ -9,7 +9,7 @@ let
   # chainstate for the D2 testnet handoff.
   dogecoind_bin = pkgs.callPackage (pkgs.fetchurl {
     url = "https://raw.githubusercontent.com/edtubbs/dogebox-nur-packages/24dfaf8bc841578b3cf5f752451f4e1ab31465ee/pkgs/dogecoin-core-backport/default.nix";
-    sha256 = "sha256-2VptpKpSPYJdE/gblor6UeNdLuHvIVA3LYgpHoAPfZI=";
+    sha256 = "sha256-gp837KUHxdBapRwgHUMUv+s1xNcxmckt3I19VbCL6vs=";
   }) {
     disableWallet = true;
     disableGUI = true;
