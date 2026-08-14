@@ -303,6 +303,29 @@ let
     '';
   };
 
+  # Feeds the node's D1 transaction relay: polls the core pup's mempool
+  # (core-rpc dependency) for unconfirmed D1 transactions and submits their
+  # canonical raw bytes to the node, which wraps each one in a D1Relay D2
+  # transaction, gossips it through the D2 mempool and includes it in D2
+  # blocks. Confirmed blocks keep flowing through d1follower's file drop.
+  d1mempool = pkgs.buildGoModule {
+    pname = "d1mempool";
+    version = "0.0.1";
+    src = ./d1mempool;
+    vendorHash = null;
+
+    buildPhase = ''
+      export GO111MODULE=off
+      export GOCACHE=$(pwd)/.gocache
+      go build -o d1mempool d1mempool.go
+    '';
+
+    installPhase = ''
+      mkdir -p $out/bin
+      cp d1mempool $out/bin/
+    '';
+  };
+
   logger = pkgs.buildGoModule {
     pname = "logger";
     version = "0.0.1";
@@ -322,5 +345,5 @@ let
   };
 in
 {
-  inherit d2d monitor logger d1follower;
+  inherit d2d monitor logger d1follower d1mempool;
 }

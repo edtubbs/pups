@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2",
-    "version": "0.0.39",
+    "version": "0.0.40",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
     "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
@@ -16,7 +16,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "2c7208ae6e9f906321d5dd82d97830bbd36ffa757c7e28aa5232a5afa3f51acd"
+      "nixFileSha256": "987b8194e9aaaeed5e4ece8690223743cf394c61f519103eda79889861f4d2f4"
     },
     "services": [
       {
@@ -47,6 +47,14 @@
         "name": "d1follower",
         "command": {
           "exec": "/bin/d1follower",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "d1mempool",
+        "command": {
+          "exec": "/bin/d1mempool",
           "cwd": "",
           "env": null
         }
@@ -301,6 +309,34 @@
       "type": "int",
       "history": 30,
       "description": "Spent-on-D1 markers recorded in the migration index from followed blocks (d2_d1_utxo_spent_total)"
+    },
+    {
+      "name": "d1_mempool_txs",
+      "label": "D1 Mempool Txs",
+      "type": "int",
+      "history": 30,
+      "description": "Unconfirmed transactions in the D1 (core) mempool available for relay"
+    },
+    {
+      "name": "d1_relayed_total",
+      "label": "D1 Txs Relayed",
+      "type": "int",
+      "history": 30,
+      "description": "Unconfirmed D1 transactions the d1mempool service has relayed into the D2 mempool (wrapped by the node as D1Relay transactions)"
+    },
+    {
+      "name": "d1_relay_pending",
+      "label": "D1 Txs Pending Relay",
+      "type": "int",
+      "history": 30,
+      "description": "D1 mempool transactions not yet relayed to the D2 mempool"
+    },
+    {
+      "name": "d1_relay_failed",
+      "label": "D1 Relay Failures",
+      "type": "int",
+      "history": 30,
+      "description": "Relay attempts rejected by the D2 node since the d1mempool service started"
     }
   ]
 }
