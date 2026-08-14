@@ -250,7 +250,7 @@
       "name": "d1_tip",
       "label": "D1 Tip",
       "type": "int",
-      "history": 1,
+      "history": 30,
       "description": "Current Dogecoin (D1) chain tip height reported by core RPC"
     },
     {
