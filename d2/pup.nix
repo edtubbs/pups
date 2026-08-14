@@ -47,6 +47,15 @@ let
     # "node status" heartbeat.
     export D2_LOGLEVEL=debug
 
+    # The d1follower service drops canonical raw D1 blocks (<height>.blk)
+    # into the d1follow directory; the node's d1follow module polls it and
+    # deletes each file once durably applied. The node's Prometheus /metrics
+    # listener exposes the §9.9 follower collectors (d2_d1_height, ...) that
+    # d1follower scrapes for its checkpoint and GUI metrics. Both are wired
+    # as command-line flags below (highest config precedence).
+    FOLLOW_DIR=${storageDirectory}/d1follow
+    METRICS_LISTEN=127.0.0.1:42072
+
     CURL=${pkgs.curl}/bin/curl
     JQ=${pkgs.jq}/bin/jq
     SHA256SUM=${pkgs.coreutils}/bin/sha256sum
@@ -205,6 +214,10 @@ let
       exit 143
     }
     trap terminate TERM INT HUP
+    # The d1follow drop directory must exist before the node arms its
+    # follower (the d1follower service also creates it, but the node may
+    # start first).
+    mkdir -p ${storageDirectory}/d1follow
     if [ -f "$SNAPSHOT_FILE" ]; then
       # Genesis-time import: boot the real testnet chain engine bootstrapped
       # from the D1 UTXO snapshot (D2 has only mainnet, testnet and regtest —
@@ -220,11 +233,13 @@ let
       # allowance and raise the systemd start timeout (or disable
       # restart-on-startup-timeout) to avoid restart loops that re-run the
       # import from scratch.
-      echo "Starting D2 node: $D2_BIN (network=testnet, d1 snapshot $SNAPSHOT_FILE)" >> $LOG
-      HOME=${storageDirectory} "$D2_BIN" --network testnet --d1-snapshot "$SNAPSHOT_FILE" >> $LOG 2>&1 &
+      echo "Starting D2 node: $D2_BIN (network=testnet, d1 snapshot $SNAPSHOT_FILE, follow dir $FOLLOW_DIR)" >> $LOG
+      HOME=${storageDirectory} "$D2_BIN" --network testnet --d1-snapshot "$SNAPSHOT_FILE" \
+        --d1-follow-dir "$FOLLOW_DIR" --metrics-listen "$METRICS_LISTEN" >> $LOG 2>&1 &
     else
-      echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot)" >> $LOG
-      HOME=${storageDirectory} "$D2_BIN" --network testnet >> $LOG 2>&1 &
+      echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot, follow dir $FOLLOW_DIR)" >> $LOG
+      HOME=${storageDirectory} "$D2_BIN" --network testnet \
+        --d1-follow-dir "$FOLLOW_DIR" --metrics-listen "$METRICS_LISTEN" >> $LOG 2>&1 &
     fi
     D2_PID=$!
     wait "$D2_PID"
@@ -260,6 +275,30 @@ let
     '';
   };
 
+  # Feeds the node's d1follow module: polls the core pup's RPC (core-rpc
+  # dependency) for confirmed D1 blocks and atomically drops their canonical
+  # raw bytes as <height>.blk files into /storage/d1follow, where the node
+  # ingests and deletes them. Replaces the retired d2-relay pup, whose
+  # d2_sendRawTransaction forwarding of D1 hex could never work (that RPC
+  # accepts only canonical D2 transaction bytes).
+  d1follower = pkgs.buildGoModule {
+    pname = "d1follower";
+    version = "0.0.1";
+    src = ./d1follower;
+    vendorHash = null;
+
+    buildPhase = ''
+      export GO111MODULE=off
+      export GOCACHE=$(pwd)/.gocache
+      go build -o d1follower d1follower.go
+    '';
+
+    installPhase = ''
+      mkdir -p $out/bin
+      cp d1follower $out/bin/
+    '';
+  };
+
   logger = pkgs.buildGoModule {
     pname = "logger";
     version = "0.0.1";
@@ -279,5 +318,5 @@ let
   };
 in
 {
-  inherit d2d monitor logger;
+  inherit d2d monitor logger d1follower;
 }

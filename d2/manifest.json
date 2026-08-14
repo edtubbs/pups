@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2",
-    "version": "0.0.35",
+    "version": "0.0.36",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
     "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
@@ -16,7 +16,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "8cffdd2cbb59d7f4bc2326a5c488d027846a43a84a41077c504b84cec9b6f810"
+      "nixFileSha256": "55e354ef75b4ad6aa57c073cf498540ceddee1d74b5df44e002a771b6e2f74e0"
     },
     "services": [
       {
@@ -39,6 +39,14 @@
         "name": "logger",
         "command": {
           "exec": "/bin/logger",
+          "cwd": "",
+          "env": null
+        }
+      },
+      {
+        "name": "d1follower",
+        "command": {
+          "exec": "/bin/d1follower",
           "cwd": "",
           "env": null
         }
@@ -124,6 +132,19 @@
       "interfaceVersion": "0.0.1",
       "permissionGroups": [
         "Snapshot"
+      ],
+      "source": {
+        "sourceLocation": "",
+        "pupName": "",
+        "pupVersion": "",
+        "pupLogoBase64": ""
+      }
+    },
+    {
+      "interfaceName": "core-rpc",
+      "interfaceVersion": "0.0.1",
+      "permissionGroups": [
+        "RPC"
       ],
       "source": {
         "sourceLocation": "",
@@ -224,6 +245,62 @@
       "type": "int",
       "history": 30,
       "description": "Total staked validator tickets in the current validator set, from d2_getValidatorSet."
+    },
+    {
+      "name": "d1_tip",
+      "label": "D1 Tip",
+      "type": "int",
+      "history": 1,
+      "description": "Current Dogecoin (D1) chain tip height reported by core RPC"
+    },
+    {
+      "name": "d1_height",
+      "label": "D1 Followed Height",
+      "type": "int",
+      "history": 30,
+      "description": "The d2-node d1follow module's ingest checkpoint: the last D1 block height durably applied to the migration index (d2_d1_height)"
+    },
+    {
+      "name": "d1_blocks_total",
+      "label": "D1 Blocks Ingested",
+      "type": "int",
+      "history": 30,
+      "description": "Total D1 blocks the d2-node follower has ingested from the follow directory (d2_d1_blocks_total)"
+    },
+    {
+      "name": "d1_blocks_written",
+      "label": "D1 Blocks Written",
+      "type": "int",
+      "history": 30,
+      "description": "Raw D1 block files the d1follower service has dropped into the follow directory since it started"
+    },
+    {
+      "name": "d1_pending",
+      "label": "D1 Blocks Pending",
+      "type": "int",
+      "history": 30,
+      "description": "Block files waiting in the follow directory (the node deletes each file once durably applied)"
+    },
+    {
+      "name": "d1_follow_lag",
+      "label": "D1 Follow Lag (blocks)",
+      "type": "int",
+      "history": 30,
+      "description": "Confirmed D1 height minus the follower's ingest checkpoint (0 when caught up)"
+    },
+    {
+      "name": "d1_migration_candidates",
+      "label": "Migration Candidates",
+      "type": "int",
+      "history": 30,
+      "description": "Tier-B migration candidates derived from followed D1 blocks (d2_d1_migration_candidates)"
+    },
+    {
+      "name": "d1_utxo_spent_total",
+      "label": "D1 UTXOs Spent",
+      "type": "int",
+      "history": 30,
+      "description": "Spent-on-D1 markers recorded in the migration index from followed blocks (d2_d1_utxo_spent_total)"
     }
   ]
 }

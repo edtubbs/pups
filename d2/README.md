@@ -50,9 +50,24 @@ until the repo is public.
   snapshot header, import pass progress with rate/ETA, "chain engine
   started", "chain genesis ready", "node started", per-RPC "rpc call"
   lines, "block produced" and the 60s "node status" heartbeat.
-- The companion [`d2-relay`](../d2-relay) pup monitors UTXOs sent/received in
-  D1 blocks and relays them to the D2 testnet, and reports testnet metrics
-  (including double-spend detection) to the Dogebox GUI.
+- After the genesis import, the node keeps **following the D1 chain** via
+  its `d1follow` module: the node is started with `--d1-follow-dir
+  /storage/d1follow` and polls that directory for files named
+  `<height>.blk` containing canonical raw D1 block bytes (exactly what
+  Core's `getblock <hash> 0` returns). Each ingested block updates the
+  migration index (Tier-B candidates, spent-on-D1 markers, resume
+  checkpoint) and the file is deleted once durably applied. The
+  `d1follower` service in this pup writes those files: it polls the core
+  pup's RPC (`core-rpc` dependency) for confirmed D1 blocks (12
+  confirmations, reorg safety), stages each block on the same filesystem
+  and atomically renames it into the follow dir, applies backpressure when
+  the node falls behind, and resets on epoch rollover (new snapshot base
+  hash). The node's ingest progress is scraped from its Prometheus
+  `/metrics` listener (`d2_d1_height`, `d2_d1_blocks_total`,
+  `d2_d1_migration_candidates`, `d2_d1_utxo_spent_total`) and reported to
+  the Dogebox GUI. This replaces the retired `d2-relay` pup, which
+  forwarded raw D1 tx hex to `d2_sendRawTransaction` — an RPC that accepts
+  only canonical D2 transaction bytes, so every call failed by design.
 
 ## Services
 
@@ -61,6 +76,7 @@ until the repo is public.
 | `d2d`     | The D2 node, data in `/storage`, P2P on 42069, JSON-RPC 2.0 on 42070; boots from the D1 snapshot (`--network testnet --d1-snapshot`) when one is available, plain testnet otherwise |
 | `monitor` | Polls the node's public read-tier RPC (`d2_getInfo`, `d2_getHealth`, `d2_getValidatorSet`) and reports status/metrics to the Dogebox GUI |
 | `logger`  | Tails the node's debug log                                         |
+| `d1follower` | Polls core RPC for confirmed D1 blocks and atomically drops their canonical raw bytes as `<height>.blk` files into `/storage/d1follow` for the node's `d1follow` module; reports follower metrics to the Dogebox GUI |
 
 ## Metrics (shown in the Dogebox GUI)
 
@@ -76,6 +92,14 @@ until the repo is public.
 | `finality_lag`  | `d2_getHealth`        | Blocks between tip and finalized head        |
 | `last_block`    | `d2_getFinalizedHead` | Hash of the last finalized block             |
 | `validators`    | `d2_getValidatorSet`  | Validators in the current epoch              |
+| `d1_tip`        | core `getblockcount`  | Current D1 chain tip height                  |
+| `d1_height`     | node `/metrics` (`d2_d1_height`) | d1follow ingest checkpoint        |
+| `d1_blocks_total` | node `/metrics` (`d2_d1_blocks_total`) | D1 blocks ingested by the node |
+| `d1_blocks_written` | d1follower      | Block files dropped into the follow dir      |
+| `d1_pending`    | follow dir            | Block files awaiting ingestion               |
+| `d1_follow_lag` | derived               | Confirmed D1 height minus ingest checkpoint  |
+| `d1_migration_candidates` | node `/metrics` | Tier-B migration candidates          |
+| `d1_utxo_spent_total` | node `/metrics` | Spent-on-D1 markers in the migration index |
 
 \* `d2_getMempool` is on the authenticated RPC tier; the monitor reads the
 bearer token from `/storage/rpc.token` (written by the node on first start)
@@ -93,12 +117,14 @@ and skips the metric gracefully if unavailable.
 
 - `core-snapshot` (v0.0.1) from the [Dogecoin Core pup](../core) — D1 UTXO
   chainstate snapshots for the fortnightly testnet reset
+- `core-rpc` (v0.0.1) from the [Dogecoin Core pup](../core) — confirmed D1
+  blocks for the `d1follower` service
 
 ## Remaining work
 
 - [x] Package the actual `d2-node` Rust daemon in dogebox-nur-packages
       (`pkgs/d2`, installs `bin/d2-node`)
 - [x] Add the fortnightly reset/bootstrap-from-D1-chainstate logic
-- [ ] Wire the write-tier RPC bearer token (`/storage/rpc.token`) to dependent
-      pups (d2-relay) via the `d2-rpc` interface
+- [x] Feed the node canonical raw D1 blocks via `--d1-follow-dir`
+      (`d1follower` service; replaces the retired `d2-relay` pup)
 - [ ] Add archival vs light-weight node profiles (config section + `Role`)
