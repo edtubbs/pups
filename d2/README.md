@@ -70,7 +70,9 @@ until the repo is public.
   only canonical D2 transaction bytes, so every call failed by design.
 - The node also **relays unconfirmed D1 transactions**: raw D1 transactions
   are wrapped in a new `D1Relay` D2 transaction type, gossiped through the
-  D2 mempool and included in D2 blocks. The `d1mempool` service feeds that
+  D2 mempool and included in D2 blocks. The relay is disabled by default in
+  the node and requires a follow dir, so the pup starts it with
+  `--d1-relay` next to `--d1-follow-dir`. The `d1mempool` service feeds that
   relay: it polls the core pup's mempool (`getrawmempool`), fetches each new
   transaction's canonical raw bytes (`getrawtransaction <txid> 0`) and
   submits them to the node's authenticated RPC tier (bearer token from

@@ -52,7 +52,9 @@ let
     # deletes each file once durably applied. This build also carries the
     # node's D1 transaction relay: raw D1 transactions are wrapped in the
     # D1Relay D2 transaction type, gossiped through the D2 mempool and
-    # included in D2 blocks — no extra node flag is needed for it.
+    # included in D2 blocks. The relay is OFF by default in the node
+    # (d1_relay = false) and requires a follow dir, so it must be enabled
+    # explicitly with --d1-relay alongside --d1-follow-dir below.
     # The node's Prometheus /metrics listener exposes the §9.9 follower
     # collectors (d2_d1_height, ...) that d1follower scrapes for its
     # checkpoint and GUI metrics. Both are wired as command-line flags
@@ -237,13 +239,13 @@ let
       # allowance and raise the systemd start timeout (or disable
       # restart-on-startup-timeout) to avoid restart loops that re-run the
       # import from scratch.
-      echo "Starting D2 node: $D2_BIN (network=testnet, d1 snapshot $SNAPSHOT_FILE, follow dir $FOLLOW_DIR)" >> $LOG
+      echo "Starting D2 node: $D2_BIN (network=testnet, d1 snapshot $SNAPSHOT_FILE, follow dir $FOLLOW_DIR, d1 relay on)" >> $LOG
       HOME=${storageDirectory} "$D2_BIN" --network testnet --d1-snapshot "$SNAPSHOT_FILE" \
-        --d1-follow-dir "$FOLLOW_DIR" --metrics-listen "$METRICS_LISTEN" >> $LOG 2>&1 &
+        --d1-follow-dir "$FOLLOW_DIR" --d1-relay --metrics-listen "$METRICS_LISTEN" >> $LOG 2>&1 &
     else
-      echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot, follow dir $FOLLOW_DIR)" >> $LOG
+      echo "Starting D2 node: $D2_BIN (network=testnet, no d1 snapshot, follow dir $FOLLOW_DIR, d1 relay on)" >> $LOG
       HOME=${storageDirectory} "$D2_BIN" --network testnet \
-        --d1-follow-dir "$FOLLOW_DIR" --metrics-listen "$METRICS_LISTEN" >> $LOG 2>&1 &
+        --d1-follow-dir "$FOLLOW_DIR" --d1-relay --metrics-listen "$METRICS_LISTEN" >> $LOG 2>&1 &
     fi
     D2_PID=$!
     wait "$D2_PID"
