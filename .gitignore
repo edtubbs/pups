@@ -3,4 +3,6 @@ result
 /root/
 d2/monitor/monitor
 d2/logger/logger
+d2/d1follower/d1follower
+d2/d1mempool/d1mempool
 .gocache/

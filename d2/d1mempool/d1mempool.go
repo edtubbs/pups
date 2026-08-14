@@ -256,19 +256,27 @@ func (f *Feeder) relay(txid, rawHex string) bool {
 			}
 			return true
 		}
-		if f.relayMethod == "" && isMethodNotFound(err) {
-			continue // try the next candidate name
+		if !isMethodNotFound(err) {
+			log.Printf("Error relaying D1 tx %s via %s: %v", txid, method, err)
+			return false
 		}
-		log.Printf("Error relaying D1 tx %s via %s: %v", txid, method, err)
-		return false
+		if f.relayMethod != "" {
+			// A pinned (or previously detected) method that the node does
+			// not know: degrade to metrics-only rather than logging the
+			// same failure for every mempool transaction, forever.
+			f.relayUnsupported = true
+			log.Printf("The d2-node build does not expose the relay RPC method %s; "+
+				"set D1MEMPOOL_RPC_METHOD to the correct method to enable the mempool feed",
+				method)
+			return false
+		}
+		// Detection in progress: try the next candidate name.
 	}
 
-	if f.relayMethod == "" {
-		f.relayUnsupported = true
-		log.Printf("The d2-node build exposes no D1 transaction relay RPC (tried %s); "+
-			"set D1MEMPOOL_RPC_METHOD to the correct method to enable the mempool feed",
-			strings.Join(relayMethodCandidates, ", "))
-	}
+	f.relayUnsupported = true
+	log.Printf("The d2-node build exposes no D1 transaction relay RPC (tried %s); "+
+		"set D1MEMPOOL_RPC_METHOD to the correct method to enable the mempool feed",
+		strings.Join(relayMethodCandidates, ", "))
 	return false
 }
 
