@@ -283,7 +283,7 @@ let
   # accepts only canonical D2 transaction bytes).
   d1follower = pkgs.buildGoModule {
     pname = "d1follower";
-    version = "0.0.1";
+    version = "0.0.2";
     src = ./d1follower;
     vendorHash = null;
 

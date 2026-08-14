@@ -100,18 +100,29 @@ type Follower struct {
 	d1Tip         int64
 	blocksWritten int64
 	pending       int64
-	nodeD1Height  float64
-	nodeD1Blocks  float64
-	candidates    float64
-	utxoSpent     float64
+	// All d2_d1_* collectors scraped from the node's Prometheus exposition
+	// (§9.9 follower metrics), keyed by metric name. Every entry is
+	// forwarded to the Dogebox UI as d1_<suffix>, so new node-side
+	// follower collectors show up without code changes here (they still
+	// need a matching entry in manifest.json to be displayed).
+	nodeMetrics map[string]float64
+}
+
+// nodeMetricPrefix selects the node's d1follow collectors.
+const nodeMetricPrefix = "d2_d1_"
+
+// nodeD1Height returns the node's ingest checkpoint (d2_d1_height).
+func (f *Follower) nodeD1Height() float64 {
+	return f.nodeMetrics["d2_d1_height"]
 }
 
 func newFollower() *Follower {
 	host := os.Getenv("DBX_IFACE_CORE_RPC_HOST")
 	port := os.Getenv("DBX_IFACE_CORE_RPC_PORT")
 	return &Follower{
-		client:   &http.Client{Timeout: 60 * time.Second},
-		d1RPCURL: fmt.Sprintf("http://%s:%s/", host, port),
+		client:      &http.Client{Timeout: 60 * time.Second},
+		d1RPCURL:    fmt.Sprintf("http://%s:%s/", host, port),
+		nodeMetrics: make(map[string]float64),
 	}
 }
 
@@ -306,9 +317,11 @@ func (f *Follower) syncEpoch() bool {
 }
 
 // scrapeNodeMetrics reads the d2-node §9.9 follower collectors from its
-// Prometheus exposition: the ingest checkpoint (d2_d1_height), block count,
-// migration candidates and spent markers. The checkpoint also fast-forwards
-// the writer cursor so already-applied blocks are never re-fed.
+// Prometheus exposition: every d2_d1_*-prefixed sample (ingest checkpoint,
+// block count, migration candidates, spent markers, and any collectors
+// added by newer node versions) is captured for forwarding to the Dogebox
+// UI. The checkpoint (d2_d1_height) also fast-forwards the writer cursor
+// so already-applied blocks are never re-fed.
 func (f *Follower) scrapeNodeMetrics() {
 	resp, err := f.client.Get(nodeMetricsURL)
 	if err != nil {
@@ -320,28 +333,29 @@ func (f *Follower) scrapeNodeMetrics() {
 		return
 	}
 	for _, line := range strings.Split(string(body), "\n") {
+		if strings.HasPrefix(line, "#") {
+			continue // HELP/TYPE comments
+		}
 		fields := strings.Fields(line)
 		if len(fields) != 2 {
+			continue
+		}
+		name := fields[0]
+		// Skip labelled series: the follower collectors are plain
+		// gauges/counters, and a labelled sample has no single value to
+		// show as one UI metric.
+		if !strings.HasPrefix(name, nodeMetricPrefix) || strings.ContainsAny(name, "{}") {
 			continue
 		}
 		val, err := strconv.ParseFloat(fields[1], 64)
 		if err != nil {
 			continue
 		}
-		switch fields[0] {
-		case "d2_d1_height":
-			f.nodeD1Height = val
-		case "d2_d1_blocks_total":
-			f.nodeD1Blocks = val
-		case "d2_d1_migration_candidates":
-			f.candidates = val
-		case "d2_d1_utxo_spent_total":
-			f.utxoSpent = val
-		}
+		f.nodeMetrics[name] = val
 	}
 
 	// The node's checkpoint is authoritative: never re-feed applied blocks.
-	if ckpt := int64(f.nodeD1Height); ckpt > 0 && ckpt+1 > f.cur.NextHeight {
+	if ckpt := int64(f.nodeD1Height()); ckpt > 0 && ckpt+1 > f.cur.NextHeight {
 		f.cur.NextHeight = ckpt + 1
 		f.saveCursor()
 	}
@@ -390,20 +404,38 @@ func (f *Follower) tick() {
 }
 
 func (f *Follower) submitMetrics() {
-	followLag := f.d1Tip - confirmations - int64(f.nodeD1Height)
+	followLag := f.d1Tip - confirmations - int64(f.nodeD1Height())
 	if followLag < 0 {
 		followLag = 0
 	}
 
+	// Metrics computed by this service.
 	jsonData := map[string]interface{}{
-		"d1_tip":                  map[string]interface{}{"value": f.d1Tip},
-		"d1_height":               map[string]interface{}{"value": int64(f.nodeD1Height)},
-		"d1_blocks_total":         map[string]interface{}{"value": int64(f.nodeD1Blocks)},
-		"d1_blocks_written":       map[string]interface{}{"value": f.blocksWritten},
-		"d1_pending":              map[string]interface{}{"value": f.pending},
-		"d1_follow_lag":           map[string]interface{}{"value": followLag},
-		"d1_migration_candidates": map[string]interface{}{"value": int64(f.candidates)},
-		"d1_utxo_spent_total":     map[string]interface{}{"value": int64(f.utxoSpent)},
+		"d1_tip":            map[string]interface{}{"value": f.d1Tip},
+		"d1_blocks_written": map[string]interface{}{"value": f.blocksWritten},
+		"d1_pending":        map[string]interface{}{"value": f.pending},
+		"d1_follow_lag":     map[string]interface{}{"value": followLag},
+	}
+
+	// Node-side follower collectors, always submitted (as 0 before the
+	// first successful scrape) so the UI never shows an empty gauge.
+	for _, name := range []string{
+		"d2_d1_height",
+		"d2_d1_blocks_total",
+		"d2_d1_migration_candidates",
+		"d2_d1_utxo_spent_total",
+	} {
+		if _, ok := f.nodeMetrics[name]; !ok {
+			f.nodeMetrics[name] = 0
+		}
+	}
+
+	// Forward every scraped d2_d1_* collector as d1_* (d2_d1_height maps
+	// to d1_height, and so on). New node collectors flow through here
+	// automatically; add them to manifest.json to display them.
+	for name, val := range f.nodeMetrics {
+		uiName := "d1_" + strings.TrimPrefix(name, nodeMetricPrefix)
+		jsonData[uiName] = map[string]interface{}{"value": int64(val)}
 	}
 
 	marshalledData, err := json.Marshal(jsonData)
