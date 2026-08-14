@@ -68,6 +68,11 @@ until the repo is public.
   the Dogebox GUI. This replaces the retired `d2-relay` pup, which
   forwarded raw D1 tx hex to `d2_sendRawTransaction` — an RPC that accepts
   only canonical D2 transaction bytes, so every call failed by design.
+- The node also **relays unconfirmed D1 transactions**: raw D1 transactions
+  are wrapped in a new `D1Relay` D2 transaction type, gossiped through the
+  D2 mempool and included in D2 blocks. This is node-side behaviour in the
+  pinned build and needs no extra flag or service in this pup; the pup only
+  feeds the node confirmed D1 blocks (above).
 
 ## Services
 

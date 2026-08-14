@@ -18,8 +18,8 @@ let
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "f582c76b81527c2c5bf900806818720ac5d0a0c6";
-    hash = "sha256-IEXqVYdqrAdVaFg8yhCc1IuLvsmNPJ5gPusy6Y95yeI=";
+    rev = "45c0c4d38fa4193db949ab20061eea37d849cd95";
+    hash = "sha256-h8TVqyPE80n2ZpDf/hRuvgWoi59EmgGiFggkipmrNtw=";
   };
 
   # The NUR package already sets doCheck = false: the Rust workspace's
@@ -49,10 +49,14 @@ let
 
     # The d1follower service drops canonical raw D1 blocks (<height>.blk)
     # into the d1follow directory; the node's d1follow module polls it and
-    # deletes each file once durably applied. The node's Prometheus /metrics
-    # listener exposes the §9.9 follower collectors (d2_d1_height, ...) that
-    # d1follower scrapes for its checkpoint and GUI metrics. Both are wired
-    # as command-line flags below (highest config precedence).
+    # deletes each file once durably applied. This build also carries the
+    # node's D1 transaction relay: raw D1 transactions are wrapped in the
+    # D1Relay D2 transaction type, gossiped through the D2 mempool and
+    # included in D2 blocks — no extra node flag is needed for it.
+    # The node's Prometheus /metrics listener exposes the §9.9 follower
+    # collectors (d2_d1_height, ...) that d1follower scrapes for its
+    # checkpoint and GUI metrics. Both are wired as command-line flags
+    # below (highest config precedence).
     FOLLOW_DIR=${storageDirectory}/d1follow
     METRICS_LISTEN=127.0.0.1:42072
 
