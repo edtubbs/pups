@@ -255,12 +255,15 @@ let
       #
       # Memory budget: the mainnet snapshot import (203M UTXOs) currently
       # peaks >12G of RAM in pass 2 — use a testnet-sized snapshot until
-      # libd2's import memory fix lands. Genesis is rebuilt from the
-      # snapshot on EVERY restart (no persistence yet), so a slow import
-      # must not be interrupted: give d2d.service a generous memory
-      # allowance and raise the systemd start timeout (or disable
-      # restart-on-startup-timeout) to avoid restart loops that re-run the
-      # import from scratch.
+      # libd2's import memory fix lands. A completed genesis import is
+      # persisted in the node's redb store and restored on restart as long
+      # as the same snapshot file and validator count are present (this
+      # script preserves utxo.dat across restarts and only wipes store.db
+      # on an epoch change), so the import only runs once per epoch — but
+      # that first import must not be interrupted: give d2d.service a
+      # generous memory allowance and raise the systemd start timeout (or
+      # disable restart-on-startup-timeout) to avoid restart loops that
+      # re-run the import from scratch.
       echo "Starting D2 node: $D2_BIN (network=testnet, d1 snapshot $SNAPSHOT_FILE, follow dir $FOLLOW_DIR, d1 relay on)" >> $LOG
       HOME=${storageDirectory} "$D2_BIN" --network testnet --d1-snapshot "$SNAPSHOT_FILE" \
         --d1-follow-dir "$FOLLOW_DIR" --d1-relay --metrics-listen "$METRICS_LISTEN" >> $LOG 2>&1 &

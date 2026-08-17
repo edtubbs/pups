@@ -2,12 +2,12 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2",
-    "version": "0.0.45",
+    "version": "0.0.46",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
     "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
     "upstreamVersions": {
-      "D2": "0-unstable-2026-08-17"
+      "D2": "1-unstable-2026-08-17"
     }
   },
   "config": {
@@ -30,7 +30,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "e6619b0afd9aa404356174f038de787c59718e36cd3845305eae5003d44842ee"
+      "nixFileSha256": "83d1fb9734af311d9dcd369b4c51b40a16de332a0fe0025d26f8d2f6e323793b"
     },
     "services": [
       {
@@ -92,15 +92,6 @@
           "d2-rpc"
         ],
         "listenOnHost": false
-      },
-      {
-        "name": "events",
-        "type": "tcp",
-        "port": 42071,
-        "interfaces": [
-          "d2-events"
-        ],
-        "listenOnHost": false
       }
     ],
     "requiresInternet": true
@@ -112,25 +103,12 @@
       "permissionGroups": [
         {
           "name": "RPC",
-          "description": "Allows RPC access to the D2 node",
+          "description": "Allows RPC access to the D2 node (block/transaction event subscriptions are served over WebSocket at /ws on this port)",
           "severity": 2,
           "routes": [
             "/*"
           ],
           "port": 0
-        }
-      ]
-    },
-    {
-      "name": "d2-events",
-      "version": "0.0.1",
-      "permissionGroups": [
-        {
-          "name": "Events",
-          "description": "Allows access to D2 node block/transaction event notifications",
-          "severity": 1,
-          "routes": null,
-          "port": 42071
         }
       ]
     },
@@ -350,7 +328,7 @@
       "label": "D1 Relay Failures",
       "type": "int",
       "history": 30,
-      "description": "D1 transactions the node's relay rejected (d2_d1_relay_rejected_total); a nonzero count is expected: only relay-tier spends are mirrored, and coinbases and duplicates are skipped"
+      "description": "D1 transactions the node's relay rejected (d2_d1_relay_rejected_total): unparseable transaction bytes and D2 mempool rejections; coinbases and already-seen duplicates are skipped without being counted here"
     },
     {
       "name": "d1_relay_bytes_total",
