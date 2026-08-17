@@ -40,8 +40,11 @@ until the repo is public.
   mainnet snapshot import (203M UTXOs) currently peaks **>12G in pass 2**;
   use a testnet-sized snapshot until libd2's import memory fix lands, and
   give the `d2d` service a generous memory allowance.
-- **Restarts:** genesis is rebuilt from the snapshot on **every restart**
-  (no persistence yet), so avoid restart loops on slow imports — raise the
+- **Restarts:** a completed genesis import is persisted in the node's redb
+  store and restored on restart when the same snapshot file and validator
+  count are present (the run script preserves `utxo.dat` across restarts
+  and only wipes `store.db` on an epoch change), so the import runs once
+  per epoch — but that first import must not be interrupted: raise the
   systemd start timeout for `d2d.service` (or disable
   restart-on-startup-timeout) so a long import is not killed and re-run
   from scratch.
@@ -154,8 +157,7 @@ and skips the metric gracefully if unavailable.
 | Interface    | Port  | Description                                  |
 |--------------|-------|----------------------------------------------|
 | `d2-network` | 42069 | P2P network port (listens on host)           |
-| `d2-rpc`     | 42070 | RPC access for dependent pups                |
-| `d2-events`  | 42071 | Block/transaction event notifications        |
+| `d2-rpc`     | 42070 | RPC access for dependent pups (WS block/tx event subscriptions at `/ws`) |
 
 ## Dependencies
 
