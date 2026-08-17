@@ -9,62 +9,77 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
 
-// d1mempool feeds UNCONFIRMED D1 transactions to the d2-node's D1
-// transaction relay. The node wraps each raw D1 transaction in a D1Relay D2
-// transaction, gossips it through the D2 mempool and includes it in D2
-// blocks; this service is the D1 side of that pipe.
+// d1mempool feeds UNCONFIRMED D1 transactions to the d2-node, which wraps
+// each raw D1 transaction in a D1Relay D2 transaction, gossips it through
+// the D2 mempool and includes it in D2 blocks.
 //
-// It complements the d1follower service, which feeds CONFIRMED D1 blocks as
-// <height>.blk files into the node's --d1-follow-dir. Blocks travel by file
-// drop because they are large and ingested in order; unconfirmed
-// transactions travel over the node's JSON-RPC write tier instead, so they
-// reach the D2 mempool as soon as they appear in D1's.
+// The feed is a FILE DROP, exactly like the confirmed-block feed: d2-node
+// has no D1 relay JSON-RPC method (d2_sendRawTransaction only accepts
+// canonical D2 transaction bytes), so its only D1 ingress is the directory
+// passed as --d1-follow-dir. The node's d1follow module sweeps that
+// directory once a second, draining *.tx files before <height>.blk files,
+// and unlinks each file once it has been handed to the relay:
+//
+//   - <height>.blk — canonical raw D1 block bytes (written by d1follower)
+//   - <txid>.tx    — canonical raw D1 transaction bytes (written here)
 //
 // Flow, once per poll:
 //   - core RPC (core-rpc dependency) getrawmempool -> txids
 //   - getrawtransaction <txid> 0 -> canonical raw D1 transaction hex
-//   - d2-node relay RPC <hex> -> D1Relay D2 transaction
+//   - hex-decode and drop <txid>.tx into the follow dir
 //
-// A transaction is submitted once; txids that leave D1's mempool (mined or
-// evicted) are forgotten so the tracking set stays bounded. Submissions are
-// rate-limited per tick so a large mempool backlog cannot flood the node.
+// Writes are atomic: each transaction is staged in a sibling directory on
+// the same filesystem and rename()d into place, so the node never observes
+// a partial .tx file. A transaction is dropped once; txids that leave D1's
+// mempool (mined or evicted) are forgotten — and their still-unconsumed
+// files removed — so neither the tracking set nor the drop dir grows
+// without bound. Drops are capped per poll so a large mempool backlog
+// cannot flood the node.
 //
-// The relay RPC method name is auto-detected from a small candidate list on
-// first use (a "method not found" response moves on to the next candidate)
-// and can be pinned with D1MEMPOOL_RPC_METHOD. Once every candidate has
-// been rejected the service only reports metrics, so an older node build
-// without the relay is never hammered with doomed calls and the confirmed
-// block path is unaffected.
+// A file drop has no accept/reject reply, so the relay outcome is read from
+// the node's own Prometheus exposition (--metrics-listen in run.sh) rather
+// than counted here. A nonzero rejected counter is expected: the node
+// mirrors only relay-tier spends and suppresses duplicates by D1 txid.
+//
+// The drop directory and file extension can be overridden with
+// D1MEMPOOL_DROP_DIR and D1MEMPOOL_DROP_EXT for node builds that expect a
+// different location or suffix.
 
 const (
 	d1RPCUser = "dogebox_core_pup_temporary_static_username"
 	d1RPCPass = "dogebox_core_pup_temporary_static_password"
 
-	d2RPCURL     = "http://127.0.0.1:42070/"
-	rpcTokenPath = "/storage/rpc.token"
+	// The node's --d1-follow-dir (see run.sh in pup.nix), shared with
+	// d1follower's confirmed .blk drops, and a staging dir on the same
+	// filesystem for atomic renames.
+	defaultDropDir = "/storage/d1follow"
+	stagingDir     = "/storage/d1mempool.staging"
+	defaultDropExt = ".tx"
+
+	// The d2-node Prometheus exposition (--metrics-listen in run.sh).
+	nodeMetricsURL = "http://127.0.0.1:42072/metrics"
 
 	pollInterval = 5 * time.Second
 	startupDelay = 15 * time.Second
 
-	// Backpressure: cap the transactions submitted in a single poll. The
-	// rest are picked up by later polls (they stay in D1's mempool).
+	// Backpressure: cap the transactions dropped in a single poll. The rest
+	// are picked up by later polls (they stay in D1's mempool).
 	maxSubmitsPerTick = 200
-
-	// JSON-RPC 2.0 reserved code for an unknown method.
-	rpcMethodNotFound = -32601
 )
 
-// relayMethodCandidates are tried in order until one is not rejected as an
-// unknown method. Set D1MEMPOOL_RPC_METHOD to pin a specific method.
-var relayMethodCandidates = []string{
-	"d2_sendRawD1Transaction",
-	"d2_relayD1Transaction",
-	"d2_sendRawD1Tx",
-	"d2_submitD1Transaction",
+// nodeRelayMetrics maps the node's D1 relay collectors to the Dogebox GUI
+// metric names declared in manifest.json.
+var nodeRelayMetrics = map[string]string{
+	"d2_d1_relay_txs_total":          "d1_relayed_total",
+	"d2_d1_relay_rejected_total":     "d1_relay_failed",
+	"d2_d1_relay_bytes_total":        "d1_relay_bytes_total",
+	"d2_d1_relay_capacity_share_bps": "d1_relay_capacity_share_bps",
 }
 
 type rpcRequest struct {
@@ -92,54 +107,66 @@ type Feeder struct {
 	client   *http.Client
 	d1RPCURL string
 
-	// relayMethod is the detected (or pinned) d2-node relay RPC method,
-	// empty until detection succeeds.
-	relayMethod string
-	// relayUnsupported is set once every candidate has been rejected as an
-	// unknown method: the node build has no D1 relay RPC.
-	relayUnsupported bool
+	dropDir string
+	dropExt string
 
-	// relayed holds the txids already submitted, pruned to D1's current
-	// mempool on every poll.
+	// relayed holds the txids already dropped into the follow dir, pruned
+	// to D1's current mempool on every poll.
 	relayed map[string]bool
 
 	// Metrics
-	mempoolTxs   int64
-	relayedTotal int64
-	failedTotal  int64
-	pending      int64
+	mempoolTxs int64
+	pending    int64
+	// Relay counters scraped from the node's Prometheus exposition, keyed
+	// by the GUI metric name (see nodeRelayMetrics).
+	nodeMetrics map[string]float64
 }
 
 func newFeeder() *Feeder {
 	host := os.Getenv("DBX_IFACE_CORE_RPC_HOST")
 	port := os.Getenv("DBX_IFACE_CORE_RPC_PORT")
-	f := &Feeder{
-		client:   &http.Client{Timeout: 60 * time.Second},
-		d1RPCURL: fmt.Sprintf("http://%s:%s/", host, port),
-		relayed:  make(map[string]bool),
+
+	dropDir := defaultDropDir
+	if dir := strings.TrimSpace(os.Getenv("D1MEMPOOL_DROP_DIR")); dir != "" {
+		dropDir = dir
 	}
-	if pinned := strings.TrimSpace(os.Getenv("D1MEMPOOL_RPC_METHOD")); pinned != "" {
-		f.relayMethod = pinned
+	dropExt := defaultDropExt
+	if ext := strings.TrimSpace(os.Getenv("D1MEMPOOL_DROP_EXT")); ext != "" {
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		dropExt = ext
 	}
-	return f
+
+	return &Feeder{
+		client:      &http.Client{Timeout: 60 * time.Second},
+		d1RPCURL:    fmt.Sprintf("http://%s:%s/", host, port),
+		dropDir:     dropDir,
+		dropExt:     dropExt,
+		relayed:     make(map[string]bool),
+		nodeMetrics: make(map[string]float64),
+	}
 }
 
-func (f *Feeder) rpcCall(url string, req rpcRequest, auth func(*http.Request), result interface{}) error {
-	reqBody, err := json.Marshal(req)
+func (f *Feeder) d1RPCCall(method string, params []interface{}, result interface{}) error {
+	reqBody, err := json.Marshal(rpcRequest{
+		JSONRPC: "1.0",
+		ID:      "d1mempool",
+		Method:  method,
+		Params:  params,
+	})
 	if err != nil {
 		return err
 	}
 
-	httpReq, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
+	req, err := http.NewRequest("POST", f.d1RPCURL, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return err
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	if auth != nil {
-		auth(httpReq)
-	}
+	req.SetBasicAuth(d1RPCUser, d1RPCPass)
+	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := f.client.Do(httpReq)
+	resp, err := f.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -163,40 +190,6 @@ func (f *Feeder) rpcCall(url string, req rpcRequest, auth func(*http.Request), r
 	return json.Unmarshal(rpcResp.Result, result)
 }
 
-func (f *Feeder) d1RPCCall(method string, params []interface{}, result interface{}) error {
-	return f.rpcCall(f.d1RPCURL, rpcRequest{
-		JSONRPC: "1.0",
-		ID:      "d1mempool",
-		Method:  method,
-		Params:  params,
-	}, func(req *http.Request) {
-		req.SetBasicAuth(d1RPCUser, d1RPCPass)
-	}, result)
-}
-
-// d2RPCCall talks to the node's write tier, which requires the bearer token
-// the node writes to /storage/rpc.token on first start.
-func (f *Feeder) d2RPCCall(method string, params []interface{}, result interface{}) error {
-	return f.rpcCall(d2RPCURL, rpcRequest{
-		JSONRPC: "2.0",
-		ID:      "d1mempool",
-		Method:  method,
-		Params:  params,
-	}, func(req *http.Request) {
-		if token := readBearerToken(); token != "" {
-			req.Header.Set("Authorization", "Bearer "+token)
-		}
-	}, result)
-}
-
-func readBearerToken() string {
-	data, err := os.ReadFile(rpcTokenPath)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(data))
-}
-
 func (f *Feeder) getRawMempool() ([]string, error) {
 	var txids []string
 	// Verbose false: a plain array of txids.
@@ -204,80 +197,109 @@ func (f *Feeder) getRawMempool() ([]string, error) {
 	return txids, err
 }
 
-// getRawTransaction returns the canonical raw D1 transaction hex — exactly
-// the bytes the relay wraps in a D1Relay D2 transaction. Mempool
+// getRawTransaction returns the canonical raw D1 transaction bytes — the
+// exact payload the node wraps in a D1Relay D2 transaction. Mempool
 // transactions are retrievable this way with or without txindex.
-func (f *Feeder) getRawTransaction(txid string) (string, error) {
+func (f *Feeder) getRawTransaction(txid string) ([]byte, error) {
 	var rawHex string
 	// Verbosity 0 (false): serialized, hex-encoded transaction data.
 	if err := f.d1RPCCall("getrawtransaction", []interface{}{txid, false}, &rawHex); err != nil {
-		return "", err
+		return nil, err
 	}
-	rawHex = strings.TrimSpace(rawHex)
-	if rawHex == "" {
-		return "", fmt.Errorf("tx %s: empty raw transaction", txid)
+	raw, err := hex.DecodeString(strings.TrimSpace(rawHex))
+	if err != nil {
+		return nil, fmt.Errorf("tx %s: bad raw hex: %w", txid, err)
 	}
-	if _, err := hex.DecodeString(rawHex); err != nil {
-		return "", fmt.Errorf("tx %s: bad raw hex: %w", txid, err)
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("tx %s: empty raw transaction", txid)
 	}
-	return rawHex, nil
+	return raw, nil
 }
 
-func isMethodNotFound(err error) bool {
-	rerr, ok := err.(*rpcError)
-	if !ok {
+// isTxid rejects anything that is not a 64-character hex string, so a value
+// returned by the D1 RPC can never build a path outside the drop dir.
+func isTxid(txid string) bool {
+	if len(txid) != 64 {
 		return false
 	}
-	if rerr.Code == rpcMethodNotFound {
-		return true
-	}
-	msg := strings.ToLower(rerr.Message)
-	return strings.Contains(msg, "method not found") || strings.Contains(msg, "unknown method")
+	_, err := hex.DecodeString(txid)
+	return err == nil
 }
 
-// relay submits one raw D1 transaction to the node, detecting the relay RPC
-// method on first use. It reports whether the transaction was accepted.
-func (f *Feeder) relay(txid, rawHex string) bool {
-	if f.relayUnsupported {
-		return false
-	}
+func (f *Feeder) dropPath(txid string) string {
+	return filepath.Join(f.dropDir, txid+f.dropExt)
+}
 
-	candidates := relayMethodCandidates
-	if f.relayMethod != "" {
-		candidates = []string{f.relayMethod}
+// writeTx atomically drops <txid>.tx into the follow dir: the bytes are
+// staged on the same filesystem and rename()d into place, so the node's
+// directory sweep never sees a partial file.
+func (f *Feeder) writeTx(txid string, raw []byte) error {
+	staged := filepath.Join(stagingDir, txid+f.dropExt)
+	if err := os.WriteFile(staged, raw, 0o644); err != nil {
+		return err
 	}
-
-	for _, method := range candidates {
-		err := f.d2RPCCall(method, []interface{}{rawHex}, nil)
-		if err == nil {
-			if f.relayMethod != method {
-				log.Printf("Using d2-node relay RPC method %s", method)
-				f.relayMethod = method
-			}
-			return true
-		}
-		if !isMethodNotFound(err) {
-			log.Printf("Error relaying D1 tx %s via %s: %v", txid, method, err)
-			return false
-		}
-		if f.relayMethod != "" {
-			// A pinned (or previously detected) method that the node does
-			// not know: degrade to metrics-only rather than logging the
-			// same failure for every mempool transaction, forever.
-			f.relayUnsupported = true
-			log.Printf("The d2-node build does not expose the relay RPC method %s; "+
-				"set D1MEMPOOL_RPC_METHOD to the correct method to enable the mempool feed",
-				method)
-			return false
-		}
-		// Detection in progress: try the next candidate name.
+	if err := os.Rename(staged, f.dropPath(txid)); err != nil {
+		os.Remove(staged)
+		return err
 	}
+	return nil
+}
 
-	f.relayUnsupported = true
-	log.Printf("The d2-node build exposes no D1 transaction relay RPC (tried %s); "+
-		"set D1MEMPOOL_RPC_METHOD to the correct method to enable the mempool feed",
-		strings.Join(relayMethodCandidates, ", "))
-	return false
+// pendingDrops lists the txids of unconsumed .tx files in the drop dir (the
+// node unlinks each file once it has handed it to the relay).
+func (f *Feeder) pendingDrops() map[string]bool {
+	pending := make(map[string]bool)
+	entries, err := os.ReadDir(f.dropDir)
+	if err != nil {
+		log.Printf("Error reading the drop dir %s: %v", f.dropDir, err)
+		return pending
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, f.dropExt) {
+			continue
+		}
+		if txid := strings.TrimSuffix(name, f.dropExt); isTxid(txid) {
+			pending[txid] = true
+		}
+	}
+	return pending
+}
+
+// scrapeNodeMetrics reads the node's D1 relay counters from its Prometheus
+// exposition. The file drop has no reply, so these are the only authority
+// on how many transactions the relay actually accepted or rejected.
+func (f *Feeder) scrapeNodeMetrics() {
+	resp, err := f.client.Get(nodeMetricsURL)
+	if err != nil {
+		return // node not up yet or metrics listener disabled
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(body), "\n") {
+		if strings.HasPrefix(line, "#") {
+			continue // HELP/TYPE comments
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		// Skip labelled series: the relay collectors are plain counters and
+		// gauges, and a labelled sample has no single value to show as one
+		// UI metric.
+		guiName, ok := nodeRelayMetrics[fields[0]]
+		if !ok {
+			continue
+		}
+		val, err := strconv.ParseFloat(fields[1], 64)
+		if err != nil {
+			continue
+		}
+		f.nodeMetrics[guiName] = val
+	}
 }
 
 func (f *Feeder) tick() {
@@ -288,28 +310,42 @@ func (f *Feeder) tick() {
 	}
 	f.mempoolTxs = int64(len(txids))
 
-	// Forget transactions that left D1's mempool (mined or evicted) so the
-	// tracking set cannot grow without bound.
-	current := make(map[string]bool, len(txids))
+	inMempool := make(map[string]bool, len(txids))
 	for _, txid := range txids {
-		current[txid] = true
-	}
-	for txid := range f.relayed {
-		if !current[txid] {
-			delete(f.relayed, txid)
-		}
+		inMempool[txid] = true
 	}
 
-	submitted := 0
-	relayedNow := 0
-	for _, txid := range txids {
-		if f.relayed[txid] {
+	// Forget transactions that left D1's mempool (mined or evicted) so the
+	// tracking set cannot grow without bound, and withdraw the ones the
+	// node has not consumed yet so stale files cannot pile up.
+	onDisk := f.pendingDrops()
+	for txid := range f.relayed {
+		if inMempool[txid] {
 			continue
 		}
-		if f.relayUnsupported || submitted >= maxSubmitsPerTick {
+		if onDisk[txid] {
+			if err := os.Remove(f.dropPath(txid)); err != nil && !os.IsNotExist(err) {
+				log.Printf("Error removing the stale D1 tx file for %s: %v", txid, err)
+				continue
+			}
+			delete(onDisk, txid)
+		}
+		delete(f.relayed, txid)
+	}
+
+	dropped := 0
+	for _, txid := range txids {
+		if dropped >= maxSubmitsPerTick {
 			break
 		}
-		rawHex, err := f.getRawTransaction(txid)
+		if f.relayed[txid] || onDisk[txid] {
+			continue
+		}
+		if !isTxid(txid) {
+			log.Printf("Skipping the malformed txid %q from the D1 mempool", txid)
+			continue
+		}
+		raw, err := f.getRawTransaction(txid)
 		if err != nil {
 			// A transaction can be mined or evicted between the mempool
 			// listing and the fetch; it is retried on the next poll if it
@@ -317,32 +353,29 @@ func (f *Feeder) tick() {
 			log.Printf("Error fetching D1 tx %s: %v", txid, err)
 			continue
 		}
-		submitted++
-		if !f.relay(txid, rawHex) {
-			f.failedTotal++
+		if err := f.writeTx(txid, raw); err != nil {
+			log.Printf("Error dropping D1 tx %s into %s: %v", txid, f.dropDir, err)
 			continue
 		}
 		f.relayed[txid] = true
-		f.relayedTotal++
-		relayedNow++
+		onDisk[txid] = true
+		dropped++
 	}
 
-	f.pending = int64(len(txids) - len(f.relayed))
-	if f.pending < 0 {
-		f.pending = 0
-	}
-	if relayedNow > 0 {
-		log.Printf("Relayed %d unconfirmed D1 transactions to the D2 mempool (%d in the D1 mempool, %d pending)",
-			relayedNow, f.mempoolTxs, f.pending)
+	f.pending = int64(len(onDisk))
+	if dropped > 0 {
+		log.Printf("Dropped %d unconfirmed D1 transactions into %s (%d in the D1 mempool, %d awaiting the node's sweep)",
+			dropped, f.dropDir, f.mempoolTxs, f.pending)
 	}
 }
 
 func (f *Feeder) submitMetrics() {
 	jsonData := map[string]interface{}{
 		"d1_mempool_txs":   map[string]interface{}{"value": f.mempoolTxs},
-		"d1_relayed_total": map[string]interface{}{"value": f.relayedTotal},
-		"d1_relay_failed":  map[string]interface{}{"value": f.failedTotal},
 		"d1_relay_pending": map[string]interface{}{"value": f.pending},
+	}
+	for name, value := range f.nodeMetrics {
+		jsonData[name] = map[string]interface{}{"value": int64(value)}
 	}
 
 	marshalledData, err := json.Marshal(jsonData)
@@ -373,23 +406,48 @@ func (f *Feeder) submitMetrics() {
 	}
 }
 
+// clearStaging removes half-written files left behind by a crash: a staged
+// file was never visible to the node, so it can always be discarded.
+func clearStaging() {
+	entries, err := os.ReadDir(stagingDir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		path := filepath.Join(stagingDir, e.Name())
+		if err := os.Remove(path); err != nil {
+			log.Printf("Error removing the stale staged file %s: %v", path, err)
+		}
+	}
+}
+
 func main() {
 	log.Println("Sleeping to give the D1 core and D2 nodes time to start..")
 	time.Sleep(startupDelay)
 
 	f := newFeeder()
-	log.Printf("Reading the D1 mempool from core RPC at %s", f.d1RPCURL)
-	if f.relayMethod != "" {
-		log.Printf("Relaying unconfirmed D1 transactions to %s via %s", d2RPCURL, f.relayMethod)
-	} else {
-		log.Printf("Relaying unconfirmed D1 transactions to %s (auto-detecting the relay RPC method)", d2RPCURL)
+	for _, dir := range []string{f.dropDir, stagingDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			log.Fatalf("Cannot create %s: %v", dir, err)
+		}
 	}
+	clearStaging()
+
+	// Files left in the drop dir by a previous run are still valid: the
+	// node consumes them on its next sweep.
+	for txid := range f.pendingDrops() {
+		f.relayed[txid] = true
+	}
+
+	log.Printf("Reading the D1 mempool from core RPC at %s", f.d1RPCURL)
+	log.Printf("Dropping unconfirmed D1 transactions as <txid>%s into %s", f.dropExt, f.dropDir)
 
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 
 	for range ticker.C {
 		f.tick()
+		f.scrapeNodeMetrics()
 		f.submitMetrics()
 	}
 }

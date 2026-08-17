@@ -47,17 +47,21 @@ let
     # "node status" heartbeat.
     export D2_LOGLEVEL=debug
 
-    # The d1follower service drops canonical raw D1 blocks (<height>.blk)
-    # into the d1follow directory; the node's d1follow module polls it and
-    # deletes each file once durably applied. This build also carries the
-    # node's D1 transaction relay: raw D1 transactions are wrapped in the
-    # D1Relay D2 transaction type, gossiped through the D2 mempool and
-    # included in D2 blocks. The relay is OFF by default in the node
-    # (d1_relay = false) and requires a follow dir, so it must be enabled
-    # explicitly with --d1-relay alongside --d1-follow-dir below.
+    # The d1follow directory is the node's ONLY D1 ingress (there is no D1
+    # relay JSON-RPC method). Its sweep runs once a second and drains
+    # *.tx files before <height>.blk files, unlinking each one once it is
+    # applied:
+    #   <height>.blk — canonical raw D1 blocks     (d1follower service)
+    #   <txid>.tx    — canonical raw D1 mempool txs (d1mempool service)
+    # The node wraps each relayed transaction in the D1Relay D2 transaction
+    # type, gossips it through the D2 mempool and includes it in D2 blocks.
+    # The relay is OFF by default in the node (d1_relay = false) and
+    # requires a follow dir, so it must be enabled explicitly with
+    # --d1-relay alongside --d1-follow-dir below.
     # The node's Prometheus /metrics listener exposes the §9.9 follower
-    # collectors (d2_d1_height, ...) that d1follower scrapes for its
-    # checkpoint and GUI metrics. Both are wired as command-line flags
+    # collectors (d2_d1_height, ...) and the D1 relay counters
+    # (d2_d1_relay_txs_total, ...) that d1follower and d1mempool scrape for
+    # their checkpoint and GUI metrics. Both are wired as command-line flags
     # below (highest config precedence).
     FOLLOW_DIR=${storageDirectory}/d1follow
     METRICS_LISTEN=127.0.0.1:42072
@@ -65,10 +69,28 @@ let
     CURL=${pkgs.curl}/bin/curl
     JQ=${pkgs.jq}/bin/jq
     SHA256SUM=${pkgs.coreutils}/bin/sha256sum
+    TR=${pkgs.coreutils}/bin/tr
 
     LOG=${storageDirectory}/debug.log
     SNAPSHOT_FILE=${storageDirectory}/utxo.dat
     SNAPSHOT_META=${storageDirectory}/utxo.dat.meta.json
+
+    # Bootstrap peers (manifest config field D2_BOOTSTRAP): a comma-separated
+    # list of multiaddrs, e.g.
+    # /ip4/1.2.3.4/tcp/42069/p2p/12D3KooW... . The node has no DHT or mDNS
+    # discovery, so without a bootstrap list it can only ever accept inbound
+    # connections and its gossip mesh stays empty ("Mesh low ... Got 0
+    # peers"). The node re-dials the list every 30s while it has no
+    # connections and logs bad multiaddrs and dial failures, so a peer that
+    # comes up later is picked up automatically. An unset/blank field must
+    # not reach the node as an empty peer list.
+    D2_BOOTSTRAP="$(echo "''${D2_BOOTSTRAP:-}" | $TR -d '[:space:]')"
+    if [ -n "$D2_BOOTSTRAP" ]; then
+      export D2_BOOTSTRAP
+      echo "Bootstrap peers: $D2_BOOTSTRAP" >> $LOG
+    else
+      unset D2_BOOTSTRAP
+    fi
 
     D2_BIN=${d2_bin}/bin/d2-node
     PKILL=${pkgs.procps}/bin/pkill
@@ -306,13 +328,14 @@ let
   };
 
   # Feeds the node's D1 transaction relay: polls the core pup's mempool
-  # (core-rpc dependency) for unconfirmed D1 transactions and submits their
-  # canonical raw bytes to the node, which wraps each one in a D1Relay D2
+  # (core-rpc dependency) for unconfirmed D1 transactions and drops their
+  # canonical raw bytes as <txid>.tx into the same follow dir d1follower
+  # writes confirmed blocks to. The node wraps each one in a D1Relay D2
   # transaction, gossips it through the D2 mempool and includes it in D2
-  # blocks. Confirmed blocks keep flowing through d1follower's file drop.
+  # blocks; the relay outcome is read back from its Prometheus counters.
   d1mempool = pkgs.buildGoModule {
     pname = "d1mempool";
-    version = "0.0.1";
+    version = "0.0.2";
     src = ./d1mempool;
     vendorHash = null;
 

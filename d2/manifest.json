@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2",
-    "version": "0.0.44",
+    "version": "0.0.45",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
     "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
@@ -11,12 +11,26 @@
     }
   },
   "config": {
-    "sections": null
+    "sections": [
+      {
+        "name": "network",
+        "label": "D2 Network",
+        "fields": [
+          {
+            "label": "Bootstrap Peers",
+            "name": "D2_BOOTSTRAP",
+            "type": "text",
+            "required": false,
+            "help": "Comma-separated multiaddrs of D2 peers to dial on start, e.g. /ip4/1.2.3.4/tcp/42069/p2p/<peerid>. The node has no peer discovery: without a bootstrap list it can only accept inbound connections. Peers are re-dialled every 30s while the node has no connections."
+          }
+        ]
+      }
+    ]
   },
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "06fe0739854640888a59ca0820e6855add4efe8cc892355c039ba815143b5e97"
+      "nixFileSha256": "e6619b0afd9aa404356174f038de787c59718e36cd3845305eae5003d44842ee"
     },
     "services": [
       {
@@ -322,21 +336,35 @@
       "label": "D1 Txs Relayed",
       "type": "int",
       "history": 30,
-      "description": "Unconfirmed D1 transactions the d1mempool service has relayed into the D2 mempool (wrapped by the node as D1Relay transactions)"
+      "description": "Unconfirmed D1 transactions the node has wrapped as D1Relay transactions and gossiped into the D2 mempool (d2_d1_relay_txs_total)"
     },
     {
       "name": "d1_relay_pending",
       "label": "D1 Txs Pending Relay",
       "type": "int",
       "history": 30,
-      "description": "D1 mempool transactions not yet relayed to the D2 mempool"
+      "description": "Dropped D1 transaction files the node has not swept out of the follow dir yet"
     },
     {
       "name": "d1_relay_failed",
       "label": "D1 Relay Failures",
       "type": "int",
       "history": 30,
-      "description": "Relay attempts rejected by the D2 node since the d1mempool service started"
+      "description": "D1 transactions the node's relay rejected (d2_d1_relay_rejected_total); a nonzero count is expected: only relay-tier spends are mirrored, and coinbases and duplicates are skipped"
+    },
+    {
+      "name": "d1_relay_bytes_total",
+      "label": "D1 Relay Bytes",
+      "type": "int",
+      "history": 30,
+      "description": "Total bytes of D1 transactions the node has relayed into the D2 mempool (d2_d1_relay_bytes_total)"
+    },
+    {
+      "name": "d1_relay_capacity_share_bps",
+      "label": "D1 Relay Capacity Share (bps)",
+      "type": "int",
+      "history": 30,
+      "description": "Share of D2 block bytes taken by relayed D1 transactions, in basis points (d2_d1_relay_capacity_share_bps)"
     }
   ]
 }
