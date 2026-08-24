@@ -2,12 +2,12 @@
   "manifestVersion": 1,
   "meta": {
     "name": "D2",
-    "version": "0.0.54",
+    "version": "0.0.55",
     "logoPath": "logo.png",
     "shortDescription": "Run a D2 testnet node on your dogebox",
     "longDescription": "This pup launches a D2 testnet node on your dogebox. The D2 testnet is reset every two weeks from a Dogecoin (D1) chainstate snapshot, enabling stress test scenarios against a realistic UTXO set.",
     "upstreamVersions": {
-      "D2": "1-unstable-2026-08-24"
+      "D2": "2-unstable-2026-08-24"
     }
   },
   "config": {
@@ -30,7 +30,7 @@
   "container": {
     "build": {
       "nixFile": "pup.nix",
-      "nixFileSha256": "b5d2d2cab0c5e5ece5640c5b117169128216dbdefcc873642c02cc3cc6340c08"
+      "nixFileSha256": "4928502f46e39662e2ddac2fda8ebc1c99ce9a373a5cc9d3cb1a53416fd366f5"
     },
     "services": [
       {
