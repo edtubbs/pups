@@ -18,8 +18,8 @@ let
   dogebox-nur-packages = pkgs.fetchFromGitHub {
     owner = "edtubbs";
     repo = "dogebox-nur-packages";
-    rev = "9dac26c12f495eb869323b2af78a43476b24c200";
-    hash = "sha256-hALN9YzmKVHvT0WTj9sArD2DdRJ2u6EBkRg8nCKlQnI=";
+    rev = "a194cae212f948fbd0f63f7eec71803392556d76";
+    hash = "sha256-zedPAi6syMiSOAb5asMSLtPCZ1l7COjMvWeNy0gWkww=";
   };
 
   # The NUR package already sets doCheck = false: the Rust workspace's
